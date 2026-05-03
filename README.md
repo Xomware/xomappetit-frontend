@@ -1,6 +1,6 @@
-# Meals Frontend
+# Xom Appétit — Frontend
 
-A meals tracking web application built with **Next.js 15**, **TypeScript**, and **Tailwind CSS**. Track meals, filter by various criteria, and rate them — all in a responsive dark-themed UI.
+Web app for **Xom Appétit**, a home-cooking tracker. Built with **Next.js 15**, **TypeScript**, and **Tailwind CSS**. Log meals, ingredients, and cooking steps; filter and rate them in a responsive dark-themed UI.
 
 ![Next.js](https://img.shields.io/badge/Next.js-15-black) ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue) ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-38bdf8)
 
@@ -22,7 +22,7 @@ A meals tracking web application built with **Next.js 15**, **TypeScript**, and 
 | Language | [TypeScript](https://www.typescriptlang.org/) |
 | Styling | [Tailwind CSS](https://tailwindcss.com/) |
 | Data Fetching | [SWR](https://swr.vercel.app/) |
-| API | REST → [api.xomware.com](https://api.xomware.com) |
+| API | Verb-style → [api.xomappetit.xomware.com](https://api.xomappetit.xomware.com) |
 
 ## Getting Started
 
@@ -35,8 +35,8 @@ A meals tracking web application built with **Next.js 15**, **TypeScript**, and 
 
 ```bash
 # Clone the repo
-git clone https://github.com/Xomware/meals-frontend.git
-cd meals-frontend
+git clone https://github.com/Xomware/xomappetit-frontend.git
+cd xomappetit-frontend
 
 # Install dependencies
 npm install

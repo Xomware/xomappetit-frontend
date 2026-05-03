@@ -1,1 +1,51 @@
 @import "tailwindcss";
+
+/* Xom Appétit brand theme — loud/maximalist, coral-led */
+@theme {
+  --color-coral-50: #fff1f1;
+  --color-coral-100: #ffdedf;
+  --color-coral-200: #ffc1c3;
+  --color-coral-300: #ff9598;
+  --color-coral-400: #ff6b6b;
+  --color-coral-500: #f04444;
+  --color-coral-600: #dc2626;
+  --color-coral-700: #b91c1c;
+  --color-coral-800: #911414;
+  --color-coral-900: #6e0f0f;
+
+  --color-flame-400: #ffa94d;
+  --color-flame-500: #ff7b1c;
+
+  --font-display: "Bebas Neue", "Anton", "Oswald", system-ui, sans-serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Subtle "stamped" border for loud cards */
+.brand-stamp {
+  box-shadow:
+    0 0 0 1px rgba(255, 107, 107, 0.35),
+    0 8px 32px -8px rgba(255, 107, 107, 0.15),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+}
+
+/* "Yes chef" stamp for strong rating display */
+.chef-stamp {
+  font-family: var(--font-display);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: linear-gradient(135deg, var(--color-coral-400), var(--color-flame-500));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Underline accent on h1s — coral gradient bar */
+.brand-bar::after {
+  content: "";
+  display: block;
+  width: 56px;
+  height: 4px;
+  border-radius: 2px;
+  margin-top: 6px;
+  background: linear-gradient(90deg, var(--color-coral-400), var(--color-flame-500));
+}

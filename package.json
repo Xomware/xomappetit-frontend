@@ -1,7 +1,7 @@
 {
-  "name": "meals-frontend",
+  "name": "xomappetit-frontend",
   "version": "1.0.0",
-  "description": "",
+  "description": "Xom Appétit — meal-tracking web app",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",

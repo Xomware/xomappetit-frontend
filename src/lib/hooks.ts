@@ -1,8 +1,11 @@
 import useSWR, { mutate } from 'swr';
-import { mealsApi } from './storage';
+import { mealsApi, commentsApi } from './storage';
 import { Meal, MealRating } from '@/types';
 
 const MEALS_KEY = 'meals';
+const commentsKey = (mealId: string) => ['comments', mealId] as const;
+
+type EditableMealFields = Parameters<typeof mealsApi.edit>[1];
 
 export function useMeals() {
   const { data, error, isLoading } = useSWR(MEALS_KEY, mealsApi.getAll);
@@ -13,6 +16,10 @@ export function useMeals() {
     error,
     addMeal: async (meal: Omit<Meal, 'id' | 'createdAt' | 'cooked'>) => {
       await mealsApi.add(meal);
+      mutate(MEALS_KEY);
+    },
+    editMeal: async (id: string, fields: EditableMealFields) => {
+      await mealsApi.edit(id, fields);
       mutate(MEALS_KEY);
     },
     toggleCooked: async (id: string) => {
@@ -26,6 +33,29 @@ export function useMeals() {
     deleteMeal: async (id: string) => {
       await mealsApi.delete(id);
       mutate(MEALS_KEY);
+    },
+  };
+}
+
+export function useMealComments(mealId: string | null) {
+  const key = mealId ? commentsKey(mealId) : null;
+  const { data, error, isLoading } = useSWR(key, () =>
+    mealId ? commentsApi.list(mealId) : Promise.resolve([])
+  );
+
+  return {
+    comments: data ?? [],
+    isLoading,
+    error,
+    addComment: async (body: string) => {
+      if (!mealId) return;
+      await commentsApi.add(mealId, body);
+      mutate(commentsKey(mealId));
+    },
+    deleteComment: async (commentId: string) => {
+      if (!mealId) return;
+      await commentsApi.delete(mealId, commentId);
+      mutate(commentsKey(mealId));
     },
   };
 }
