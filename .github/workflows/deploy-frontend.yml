@@ -31,22 +31,27 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Build (Next.js static export)
-        env:
-          NEXT_PUBLIC_API_URL: https://api.xomappetit.xomware.com
-          NEXT_PUBLIC_COGNITO_USER_POOL_ID: ${{ secrets.COGNITO_USER_POOL_ID }}
-          NEXT_PUBLIC_COGNITO_CLIENT_ID: ${{ secrets.COGNITO_CLIENT_ID }}
-          NEXT_PUBLIC_COGNITO_DOMAIN: ${{ secrets.COGNITO_DOMAIN }}
-          NEXT_PUBLIC_AWS_REGION: us-east-1
-          NEXT_PUBLIC_GA4_MEASUREMENT_ID: ${{ secrets.GA4_MEASUREMENT_ID }}
-        run: npm run build
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Pull config from SSM (Terraform-managed values)
+        run: |
+          {
+            echo "NEXT_PUBLIC_COGNITO_USER_POOL_ID=$(aws ssm get-parameter --name /xomware/shared/cognito/user-pool-id --query Parameter.Value --output text)"
+            echo "NEXT_PUBLIC_COGNITO_CLIENT_ID=$(aws ssm get-parameter --name /xomware/shared/cognito/clients/xomappetit-id --query Parameter.Value --output text)"
+            echo "NEXT_PUBLIC_COGNITO_DOMAIN=$(aws ssm get-parameter --name /xomware/shared/cognito/hosted-ui-domain --query Parameter.Value --output text)"
+          } >> "$GITHUB_ENV"
+
+      - name: Build (Next.js static export)
+        env:
+          NEXT_PUBLIC_API_URL: https://api.xomappetit.xomware.com
+          NEXT_PUBLIC_AWS_REGION: us-east-1
+          NEXT_PUBLIC_GA4_MEASUREMENT_ID: ${{ secrets.GA4_MEASUREMENT_ID }}
+        run: npm run build
 
       - name: Sync hashed assets to S3 (long cache)
         run: |
