@@ -203,16 +203,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
-    // Stub: Phase 4 wires the Google IdP. For now this is a no-op so the
-    // button can render without crashing. If/when Google is provisioned in
-    // the user pool, swap this for:
-    //   await signInWithRedirect({ provider: 'Google' });
-    // Reference imported to keep TS happy if we wire it later.
-    void signInWithRedirect;
-    if (typeof window !== 'undefined') {
-      // Soft signal during local testing; production button can show a tooltip.
-      console.info('[auth] Google sign-in is not wired yet (Phase 4).');
-    }
+    // Phase 4: kick off Google federated sign-in via Cognito Hosted UI.
+    // Amplify navigates the page to Google's consent screen; control returns
+    // to the app at /auth/callback after the round trip.
+    await signInWithRedirect({ provider: 'Google' });
   }, []);
 
   const signOut = useCallback(async () => {

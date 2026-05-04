@@ -124,11 +124,10 @@ export default function SignInPage() {
           type="button"
           onClick={() => void signInWithGoogle()}
           className={authSecondaryBtnClass}
-          aria-label="Sign in with Google (coming soon)"
-          title="Coming soon"
+          aria-label="Sign in with Google"
+          disabled={submitting}
         >
           Sign in with Google
-          <span className="ml-2 text-xs text-zinc-400">(soon)</span>
         </button>
       </form>
     </AuthShell>

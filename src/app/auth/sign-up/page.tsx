@@ -5,6 +5,7 @@ import Link from 'next/link';
 import AuthShell, {
   authInputClass,
   authPrimaryBtnClass,
+  authSecondaryBtnClass,
 } from '@/components/AuthShell';
 import { useAuth } from '@/lib/auth-context';
 
@@ -30,7 +31,7 @@ function validateHandle(handle: string): string | null {
 }
 
 export default function SignUpPage() {
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [handle, setHandle] = useState('');
@@ -157,6 +158,22 @@ export default function SignUpPage() {
 
         <button type="submit" className={authPrimaryBtnClass} disabled={submitting}>
           {submitting ? 'Creating account…' : 'Create account'}
+        </button>
+
+        <div className="flex items-center gap-3 my-2">
+          <div className="h-px flex-1 bg-zinc-800" />
+          <span className="text-xs uppercase tracking-wider text-zinc-600">or</span>
+          <div className="h-px flex-1 bg-zinc-800" />
+        </div>
+
+        <button
+          type="button"
+          onClick={() => void signInWithGoogle()}
+          className={authSecondaryBtnClass}
+          aria-label="Continue with Google"
+          disabled={submitting}
+        >
+          Continue with Google
         </button>
       </form>
     </AuthShell>
