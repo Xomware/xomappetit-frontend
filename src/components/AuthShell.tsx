@@ -2,6 +2,7 @@
 import { ReactNode } from 'react';
 import Link from 'next/link';
 import Brand from './Brand';
+import Monster from './Monster';
 
 interface Props {
   title: string;
@@ -12,22 +13,23 @@ interface Props {
 
 /**
  * Centered card layout shared by every /auth/* page.
- * Matches the Xom Appétit brand: dark zinc base, banner mark above the
- * card, subtle gradient frame.
+ * Matches the Xom Appétit brand: dark zinc base, animated coral/flame
+ * blobs + occasional lightning behind the content (Monster), banner mark
+ * above the card.
  */
 export default function AuthShell({ title, subtitle, children, footer }: Props) {
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-zinc-950">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6">
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-12 bg-zinc-950 overflow-hidden">
+      <Monster />
+      <div className="relative w-full max-w-md" style={{ zIndex: 1 }}>
+        <div className="text-center mb-8">
           <Link
             href="/"
             aria-label="Xom Appétit home"
             className="inline-block focus:outline-none focus:ring-2 focus:ring-coral-400/50 rounded"
           >
-            <Brand height={64} />
+            <Brand height={96} />
           </Link>
-          <div className="mt-3 inline-block h-1 w-14 rounded-full bg-gradient-to-r from-coral-400 to-flame-500" />
         </div>
 
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 backdrop-blur p-6 sm:p-8 brand-stamp">
