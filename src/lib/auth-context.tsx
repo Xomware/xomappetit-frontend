@@ -13,7 +13,6 @@ import { Amplify } from 'aws-amplify';
 import {
   confirmSignUp as amplifyConfirmSignUp,
   fetchAuthSession,
-  fetchUserAttributes,
   getCurrentUser,
   resendSignUpCode,
   signIn as amplifySignIn,
@@ -95,11 +94,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUser = useCallback(async () => {
     try {
       const current = await getCurrentUser();
-      const attrs = await fetchUserAttributes();
+      // Read attributes from the id-token claims, NOT fetchUserAttributes().
+      // The latter requires the `aws.cognito.signin.user.admin` scope, which
+      // OAuth tokens (Google sign-in) don't have — our app client only grants
+      // ["email", "openid", "profile"]. JWT claims work for both flows.
+      const session = await fetchAuthSession();
+      const claims = (session.tokens?.idToken?.payload ?? {}) as Record<string, unknown>;
+      // Don't fall back to current.username for preferredUsername — for
+      // federated users that's the ugly Google_<id> form.
+      const preferredUsername =
+        typeof claims['preferred_username'] === 'string'
+          ? (claims['preferred_username'] as string)
+          : '';
       const next: AuthUser = {
         sub: current.userId,
-        email: attrs.email ?? '',
-        preferredUsername: attrs.preferred_username ?? current.username,
+        email: typeof claims['email'] === 'string' ? (claims['email'] as string) : '',
+        preferredUsername,
       };
       setUser(next);
       identify(next.sub);
