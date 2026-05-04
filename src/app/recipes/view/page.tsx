@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRequireAuth, useAuth } from '@/lib/auth-context';
 import { useRecipe } from '@/lib/hooks';
-import Header from '@/components/Header';
 import { RecipeForm, RecipeFormValues } from '@/components/RecipeForm';
 import { RecipeComments } from '@/components/RecipeComments';
 import { RatingStars } from '@/components/RatingStars';
@@ -85,7 +84,6 @@ function RecipeViewInner() {
   if (editing) {
     return (
       <div>
-        <Header />
         <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-2xl font-black uppercase tracking-wide">
@@ -112,7 +110,6 @@ function RecipeViewInner() {
 
   return (
     <div>
-      <Header />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <Link

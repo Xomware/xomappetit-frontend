@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { useRequireAuth } from '@/lib/auth-context';
 import { useRecipes } from '@/lib/hooks';
-import Header from '@/components/Header';
 import { RecipeCard } from '@/components/RecipeCard';
 import { MASCOTS, mascotFor } from '@/components/Mascot';
 
@@ -10,58 +9,51 @@ export default function Home() {
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const { recipes, isLoading } = useRecipes();
 
-  if (authLoading || !isAuthenticated) {
-    return <PageLoading />;
-  }
-
-  const subtitle = (
-    <>
-      <span className="text-coral-400 font-semibold">{recipes.length}</span>{' '}
-      {recipes.length === 1 ? 'recipe' : 'recipes'}
-    </>
-  );
-
-  const actions = (
-    <Link
-      href="/recipes/new"
-      className="bg-gradient-to-r from-coral-500 to-coral-400 hover:from-coral-400 hover:to-coral-300 text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition shadow-lg shadow-coral-500/20 focus:outline-none focus:ring-2 focus:ring-coral-400/50"
-    >
-      + New recipe
-    </Link>
-  );
+  // While auth is settling OR we haven't done the first data load yet,
+  // show the kitchen-warmup spinner. Don't fall through to EmptyState
+  // mid-transition — that's what made "Welcome to Flavortown" blink.
+  const dataReady = isAuthenticated && !isLoading;
 
   return (
-    <div>
-      <Header subtitle={subtitle} actions={actions} />
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {isLoading ? (
-          <PageLoading inline />
-        ) : recipes.length === 0 ? (
-          <EmptyState />
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {recipes.map((r) => (
-              <RecipeCard key={r.recipeId} recipe={r} />
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
+    <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+      <div className="flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="font-display text-2xl font-black uppercase tracking-wide">Recipes</h2>
+          <p className="text-sm text-zinc-400 mt-1">
+            <span className="text-coral-400 font-semibold">{recipes.length}</span>{' '}
+            {recipes.length === 1 ? 'recipe' : 'recipes'}
+          </p>
+        </div>
+        <Link
+          href="/recipes/new"
+          className="bg-gradient-to-r from-coral-500 to-coral-400 hover:from-coral-400 hover:to-coral-300 text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition shadow-lg shadow-coral-500/20 focus:outline-none focus:ring-2 focus:ring-coral-400/50"
+        >
+          + New recipe
+        </Link>
+      </div>
+
+      {!dataReady || authLoading ? (
+        <PageLoading />
+      ) : recipes.length === 0 ? (
+        <EmptyState />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {recipes.map((r) => (
+            <RecipeCard key={r.recipeId} recipe={r} />
+          ))}
+        </div>
+      )}
+    </main>
   );
 }
 
-function PageLoading({ inline }: { inline?: boolean }) {
-  const wrap = inline
-    ? 'text-center py-16'
-    : 'min-h-screen flex items-center justify-center';
+function PageLoading() {
   return (
-    <div className={wrap}>
-      <div className="text-center">
-        <div className="text-coral-400 text-3xl animate-pulse" aria-hidden="true">
-          🔥
-        </div>
-        <div className="text-zinc-500 text-sm mt-2 italic">heating up the kitchen…</div>
+    <div className="text-center py-16">
+      <div className="text-coral-400 text-3xl animate-pulse" aria-hidden="true">
+        🔥
       </div>
+      <div className="text-zinc-500 text-sm mt-2 italic">heating up the kitchen…</div>
     </div>
   );
 }

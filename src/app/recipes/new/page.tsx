@@ -3,7 +3,6 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useRequireAuth } from '@/lib/auth-context';
 import { useRecipes } from '@/lib/hooks';
-import Header from '@/components/Header';
 import { RecipeForm, RecipeFormValues } from '@/components/RecipeForm';
 
 export default function NewRecipePage() {
@@ -30,7 +29,6 @@ export default function NewRecipePage() {
 
   return (
     <div>
-      <Header />
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="font-display text-2xl font-black uppercase tracking-wide">

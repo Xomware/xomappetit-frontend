@@ -1,30 +1,19 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useProfile } from '@/lib/use-profile';
 
-interface Props {
-  title?: string;
-  subtitle?: React.ReactNode;
-  actions?: React.ReactNode;
-}
-
-export default function Header({ title = 'Xom Appétit', subtitle, actions }: Props) {
+export default function Header() {
   return (
-    <header className="border-b border-zinc-800 bg-gradient-to-b from-zinc-950 to-zinc-950/80 backdrop-blur sticky top-0 z-30">
-      <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-        <div>
-          <Link href="/" className="inline-block focus:outline-none focus:ring-2 focus:ring-coral-400/50 rounded">
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight brand-bar">
-              <span className="chef-stamp">{title}</span>
-            </h1>
-          </Link>
-          {subtitle && <div className="text-zinc-400 text-sm mt-2">{subtitle}</div>}
-        </div>
-        <div className="flex gap-2 items-center flex-wrap">
+    <header className="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur sticky top-0 z-30">
+      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+        <Link href="/" className="inline-block focus:outline-none focus:ring-2 focus:ring-coral-400/50 rounded">
+          <span className="text-xl font-black tracking-tight chef-stamp">Xom Appétit</span>
+        </Link>
+        <div className="flex items-center gap-2">
           <NavLinks />
-          {actions}
           <UserMenu />
         </div>
       </div>
@@ -33,21 +22,34 @@ export default function Header({ title = 'Xom Appétit', subtitle, actions }: Pr
 }
 
 function NavLinks() {
+  const pathname = usePathname() || '/';
+  const isRecipes = pathname === '/' || pathname.startsWith('/recipes');
+  const isCooks = pathname.startsWith('/cooks');
+
   return (
     <nav className="flex items-center gap-1 bg-zinc-900 rounded-lg p-0.5 border border-zinc-800">
-      <Link
-        href="/"
-        className="px-3 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-2 focus:ring-coral-400/50"
-      >
+      <NavLink href="/" active={isRecipes}>
         Recipes
-      </Link>
-      <Link
-        href="/cooks"
-        className="px-3 py-1.5 rounded-md text-sm text-zinc-400 hover:text-white hover:bg-zinc-800 transition focus:outline-none focus:ring-2 focus:ring-coral-400/50"
-      >
+      </NavLink>
+      <NavLink href="/cooks" active={isCooks}>
         Cooks
-      </Link>
+      </NavLink>
     </nav>
+  );
+}
+
+function NavLink({ href, active, children }: { href: string; active: boolean; children: React.ReactNode }) {
+  const cls = active
+    ? 'bg-zinc-800 text-coral-300'
+    : 'text-zinc-400 hover:text-white hover:bg-zinc-800';
+  return (
+    <Link
+      href={href}
+      aria-current={active ? 'page' : undefined}
+      className={`px-3 py-1.5 rounded-md text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-coral-400/50 ${cls}`}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -78,7 +80,7 @@ function UserMenu() {
     return (
       <Link
         href="/auth/sign-in"
-        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 text-zinc-100 px-3 py-2 rounded-lg text-sm font-semibold transition"
+        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 text-zinc-100 px-3 py-1.5 rounded-lg text-sm font-semibold transition"
       >
         Sign in
       </Link>
@@ -86,9 +88,9 @@ function UserMenu() {
   }
 
   const handle = profile?.preferredUsername ?? user.preferredUsername;
-  const label = profile?.displayName?.trim() || handle;
+  const label = profile?.displayName?.trim() || handle || 'You';
   const avatarUrl = profile?.avatarUrl ?? null;
-  const initial = (label || handle).charAt(0);
+  const initial = (label || 'U').charAt(0);
 
   return (
     <div ref={ref} className="relative">
@@ -98,7 +100,7 @@ function UserMenu() {
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={`Account menu for ${label}`}
-        className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 text-zinc-100 px-2.5 py-1.5 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-coral-400/40"
+        className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 text-zinc-100 px-2 py-1 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-coral-400/40"
       >
         <span className="h-7 w-7 rounded-full overflow-hidden bg-zinc-800 grid place-items-center shrink-0">
           {avatarUrl ? (
@@ -110,7 +112,7 @@ function UserMenu() {
             </span>
           )}
         </span>
-        <span className="max-w-[8rem] truncate">{label}</span>
+        <span className="max-w-[8rem] truncate hidden sm:inline">{label}</span>
         <span className="text-zinc-500" aria-hidden="true">
           ▾
         </span>
@@ -123,7 +125,7 @@ function UserMenu() {
         >
           <div className="px-3 py-2 border-b border-zinc-800">
             <div className="text-sm font-semibold text-zinc-100 truncate">{label}</div>
-            <div className="text-xs text-zinc-500 truncate">@{handle}</div>
+            {handle && <div className="text-xs text-zinc-500 truncate">@{handle}</div>}
           </div>
           <Link
             role="menuitem"

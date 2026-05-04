@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { useRequireAuth, useAuth } from '@/lib/auth-context';
 import { useMyCooks, useRecipes } from '@/lib/hooks';
-import Header from '@/components/Header';
 import { Cook, Recipe } from '@/types';
 
 export default function CooksPage() {
@@ -11,51 +10,39 @@ export default function CooksPage() {
   const { cooks, isLoading } = useMyCooks();
   const { recipes } = useRecipes();
 
-  if (authLoading || !isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-coral-400 text-3xl animate-pulse" aria-hidden="true">
-          🔥
-        </div>
-      </div>
-    );
-  }
-
   const recipeMap = new Map<string, Recipe>(recipes.map((r) => [r.recipeId, r]));
-
-  const subtitle = (
-    <>
-      <span className="text-coral-400 font-semibold">{cooks.length}</span>{' '}
-      {cooks.length === 1 ? 'cook session' : 'cook sessions'}
-    </>
-  );
+  const dataReady = isAuthenticated && !isLoading;
 
   return (
-    <div>
-      <Header subtitle={subtitle} />
-      <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-        <h2 className="font-display text-2xl font-black uppercase tracking-wide">
-          Your cook log
-        </h2>
+    <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+      <div>
+        <h2 className="font-display text-2xl font-black uppercase tracking-wide">Cooks</h2>
+        <p className="text-sm text-zinc-400 mt-1">
+          <span className="text-coral-400 font-semibold">{cooks.length}</span>{' '}
+          {cooks.length === 1 ? 'cook session' : 'cook sessions'}
+        </p>
+      </div>
 
-        {isLoading ? (
-          <div className="text-center py-16 text-zinc-500 italic">loading…</div>
-        ) : cooks.length === 0 ? (
-          <EmptyCooks />
-        ) : (
-          <ul className="space-y-3">
-            {cooks.map((c) => (
-              <CookRow
-                key={c.cookId}
-                cook={c}
-                recipeName={recipeMap.get(c.recipeId)?.name ?? 'Unknown recipe'}
-                userId={user?.sub ?? null}
-              />
-            ))}
-          </ul>
-        )}
-      </main>
-    </div>
+      {!dataReady || authLoading ? (
+        <div className="text-center py-16">
+          <div className="text-coral-400 text-3xl animate-pulse" aria-hidden="true">🔥</div>
+          <div className="text-zinc-500 text-sm mt-2 italic">heating up the kitchen…</div>
+        </div>
+      ) : cooks.length === 0 ? (
+        <EmptyCooks />
+      ) : (
+        <ul className="space-y-3">
+          {cooks.map((c) => (
+            <CookRow
+              key={c.cookId}
+              cook={c}
+              recipeName={recipeMap.get(c.recipeId)?.name ?? 'Unknown recipe'}
+              userId={user?.sub ?? null}
+            />
+          ))}
+        </ul>
+      )}
+    </main>
   );
 }
 

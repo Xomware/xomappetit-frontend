@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRequireAuth, useAuth } from '@/lib/auth-context';
 import { useCook, useRecipe } from '@/lib/hooks';
-import Header from '@/components/Header';
 import { CookForm, CookFormValues } from '@/components/CookForm';
 import { RatingStars } from '@/components/RatingStars';
 
@@ -61,7 +60,6 @@ function CookViewInner() {
   if (editing) {
     return (
       <div>
-        <Header />
         <main className="max-w-2xl mx-auto px-4 py-6 space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-2xl font-black uppercase tracking-wide">
@@ -102,7 +100,6 @@ function CookViewInner() {
 
   return (
     <div>
-      <Header />
       <main className="max-w-3xl mx-auto px-4 py-6 space-y-6">
         <div className="flex items-center justify-between">
           <Link
