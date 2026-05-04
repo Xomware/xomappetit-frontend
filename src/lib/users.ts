@@ -13,6 +13,10 @@ export interface UserProfile {
   preferredUsername: string;
   displayName: string;
   avatarUrl: string | null;
+  /** Hex color (`#rrggbb`) for the stock SVG avatar; null when using uploaded photo or app default. */
+  avatarStockColor: string | null;
+  /** Recently-used avatar URLs (most recent first, capped at 6). */
+  avatarHistory: string[];
   profileVisibility: ProfileVisibility;
   createdAt: string;
 }
@@ -23,12 +27,14 @@ export interface PublicUserProfile {
   preferredUsername: string;
   displayName: string;
   avatarUrl: string | null;
+  avatarStockColor: string | null;
   profileVisibility: ProfileVisibility;
 }
 
 export interface EditProfileFields {
   displayName?: string;
   avatarUrl?: string | null;
+  avatarStockColor?: string | null;
   profileVisibility?: ProfileVisibility;
 }
 
