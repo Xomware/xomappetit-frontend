@@ -1,6 +1,7 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Modal from './Modal';
+import AvatarPicker from './AvatarPicker';
 import {
   EditProfileFields,
   ProfileVisibility,
@@ -12,11 +13,8 @@ interface Props {
   profile: UserProfile;
   onClose: () => void;
   onSave: (fields: EditProfileFields) => Promise<UserProfile>;
-  onUploadAvatar: (file: File) => Promise<UserProfile>;
 }
 
-const ACCEPTED_TYPES = 'image/png,image/jpeg,image/webp';
-const MAX_AVATAR_BYTES = 5 * 1024 * 1024; // 5 MB
 const DISPLAY_NAME_MIN = 1;
 const DISPLAY_NAME_MAX = 50;
 
@@ -25,71 +23,46 @@ const inputCls =
 const labelCls =
   'block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5';
 
+type AvatarChoice =
+  | { kind: 'photo'; url: string }
+  | { kind: 'stock'; color: string };
+
 export default function EditProfileModal({
   open,
   profile,
   onClose,
   onSave,
-  onUploadAvatar,
 }: Props) {
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [visibility, setVisibility] = useState<ProfileVisibility>(
     profile.profileVisibility,
   );
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [pendingAvatar, setPendingAvatar] = useState<AvatarChoice | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset form whenever a new profile is loaded into the modal (e.g. user
-  // opens it, edits, closes, opens again).
   useEffect(() => {
     if (!open) return;
     setDisplayName(profile.displayName);
     setVisibility(profile.profileVisibility);
-    setPendingFile(null);
-    setPreviewUrl(null);
+    setPendingAvatar(null);
     setError(null);
   }, [open, profile.displayName, profile.profileVisibility]);
-
-  // Manage object URL lifecycle so we don't leak blobs.
-  useEffect(() => {
-    if (!pendingFile) {
-      setPreviewUrl(null);
-      return;
-    }
-    const url = URL.createObjectURL(pendingFile);
-    setPreviewUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [pendingFile]);
 
   const trimmedName = displayName.trim();
   const nameValid =
     trimmedName.length >= DISPLAY_NAME_MIN &&
     trimmedName.length <= DISPLAY_NAME_MAX;
 
+  const avatarChanged =
+    pendingAvatar !== null &&
+    !(pendingAvatar.kind === 'photo' && pendingAvatar.url === profile.avatarUrl) &&
+    !(pendingAvatar.kind === 'stock' && pendingAvatar.color === profile.avatarStockColor);
+
   const dirty =
     trimmedName !== profile.displayName ||
     visibility !== profile.profileVisibility ||
-    !!pendingFile;
-
-  const handleFile = (file: File | null) => {
-    setError(null);
-    if (!file) {
-      setPendingFile(null);
-      return;
-    }
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      setError('Avatar must be a PNG, JPEG, or WebP.');
-      return;
-    }
-    if (file.size > MAX_AVATAR_BYTES) {
-      setError('Avatar must be 5 MB or smaller.');
-      return;
-    }
-    setPendingFile(file);
-  };
+    avatarChanged;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,19 +70,18 @@ export default function EditProfileModal({
     setSubmitting(true);
     setError(null);
     try {
-      // Avatar first so the final edit reflects the new URL atomically.
-      if (pendingFile) {
-        await onUploadAvatar(pendingFile);
-      }
-
       const fields: EditProfileFields = {};
       if (trimmedName !== profile.displayName) fields.displayName = trimmedName;
       if (visibility !== profile.profileVisibility)
         fields.profileVisibility = visibility;
-
-      if (Object.keys(fields).length > 0) {
-        await onSave(fields);
+      if (pendingAvatar?.kind === 'photo') {
+        fields.avatarUrl = pendingAvatar.url;
+        fields.avatarStockColor = null;
+      } else if (pendingAvatar?.kind === 'stock') {
+        fields.avatarStockColor = pendingAvatar.color;
+        fields.avatarUrl = null;
       }
+      if (Object.keys(fields).length > 0) await onSave(fields);
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -118,60 +90,18 @@ export default function EditProfileModal({
     }
   };
 
-  const avatarShown = previewUrl ?? profile.avatarUrl ?? null;
-
   return (
     <Modal open={open} onClose={onClose} title="Edit profile">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
           <span className={labelCls}>Avatar</span>
-          <div className="flex items-center gap-4">
-            <div className="h-20 w-20 rounded-full overflow-hidden border border-zinc-700 bg-zinc-800 grid place-items-center">
-              {avatarShown ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={avatarShown}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span
-                  className="text-xl font-black uppercase text-white bg-gradient-to-br from-coral-500 to-flame-500 h-full w-full grid place-items-center"
-                  aria-hidden="true"
-                >
-                  {profile.preferredUsername.charAt(0)}
-                </span>
-              )}
-            </div>
-            <div className="flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 hover:border-coral-500/50 text-zinc-100 px-3 py-1.5 rounded-md text-xs font-semibold uppercase tracking-wider transition focus:outline-none focus:ring-2 focus:ring-coral-400/40"
-              >
-                {avatarShown ? 'Change' : 'Upload'}
-              </button>
-              {pendingFile && (
-                <button
-                  type="button"
-                  onClick={() => handleFile(null)}
-                  className="text-xs text-zinc-400 hover:text-coral-300 transition"
-                >
-                  Cancel selection
-                </button>
-              )}
-              <p className="text-[11px] text-zinc-500">
-                PNG, JPEG, or WebP. Max 5 MB.
-              </p>
-            </div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPTED_TYPES}
-              className="sr-only"
-              onChange={(e) => handleFile(e.target.files?.[0] ?? null)}
-            />
-          </div>
+          <AvatarPicker
+            avatarUrl={profile.avatarUrl}
+            stockColor={profile.avatarStockColor}
+            history={profile.avatarHistory ?? []}
+            pending={pendingAvatar}
+            onChange={setPendingAvatar}
+          />
         </div>
 
         <div>

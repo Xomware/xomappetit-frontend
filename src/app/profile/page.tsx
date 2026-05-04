@@ -40,7 +40,6 @@ export default function ProfilePage() {
         profile={profile}
         onClose={() => setEditOpen(false)}
         onSave={edit}
-        onUploadAvatar={uploadAvatar}
       />
     </div>
   );
