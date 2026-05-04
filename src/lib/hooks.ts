@@ -21,7 +21,7 @@ export function useRecipes() {
   const { isAuthenticated } = useAuth();
   const { data, error, isLoading } = useSWR(
     isAuthenticated ? RECIPES_KEY : null,
-    recipesApi.list,
+    () => recipesApi.list(),
   );
 
   return {
@@ -44,6 +44,31 @@ export function useRecipes() {
       mutate(RECIPES_KEY);
     },
   };
+}
+
+/** Public recipes feed — anyone signed in can read this. */
+export function usePublicRecipes() {
+  const { isAuthenticated } = useAuth();
+  const { data, error, isLoading } = useSWR(
+    isAuthenticated ? 'recipes:public' : null,
+    () => recipesApi.listPublic({ limit: 50 }),
+  );
+  return {
+    recipes: data?.items ?? [],
+    nextCursor: data?.nextCursor ?? null,
+    isLoading: isAuthenticated ? isLoading : false,
+    error,
+  };
+}
+
+/** Recipes by another user (filtered to public on the server). */
+export function useUserRecipes(authorUserId: string | null) {
+  const { isAuthenticated } = useAuth();
+  const key = authorUserId && isAuthenticated ? ['user-recipes', authorUserId] as const : null;
+  const { data, error, isLoading } = useSWR(key, () =>
+    authorUserId ? recipesApi.list(authorUserId) : Promise.reject(new Error('no id')),
+  );
+  return { recipes: data ?? [], isLoading, error };
 }
 
 export function useRecipe(recipeId: string | null) {

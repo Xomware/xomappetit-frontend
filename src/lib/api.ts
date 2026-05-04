@@ -68,8 +68,18 @@ export interface RateRecipeResult {
   ratingCount: number;
 }
 
+export interface RecipesPublicPage {
+  items: Recipe[];
+  nextCursor: string | null;
+}
+
 export const recipesApi = {
-  list: (): Promise<Recipe[]> => apiPost<Recipe[]>('/recipes/list'),
+  /** Caller's own recipes (default), or another user's public recipes when `authorUserId` is set. */
+  list: (authorUserId?: string): Promise<Recipe[]> =>
+    apiPost<Recipe[]>('/recipes/list', authorUserId ? { authorUserId } : undefined),
+  /** Global feed of `privacy = 'public'` recipes, newest first. */
+  listPublic: (opts?: { limit?: number; cursor?: string }): Promise<RecipesPublicPage> =>
+    apiPost<RecipesPublicPage>('/recipes/list-public', opts ?? {}),
   create: (body: CreateRecipeInput): Promise<Recipe> =>
     apiPost<Recipe>('/recipes/create', body),
   get: (recipeId: string): Promise<Recipe> =>

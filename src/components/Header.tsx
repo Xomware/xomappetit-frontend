@@ -29,12 +29,16 @@ export default function Header() {
 function NavLinks() {
   const pathname = usePathname() || '/';
   const isRecipes = pathname === '/' || pathname.startsWith('/recipes');
+  const isDiscover = pathname.startsWith('/discover') || pathname.startsWith('/u/');
   const isCooks = pathname.startsWith('/cooks');
 
   return (
     <nav className="flex items-center gap-1 bg-zinc-900 rounded-lg p-0.5 border border-zinc-800">
       <NavLink href="/" active={isRecipes}>
         Recipes
+      </NavLink>
+      <NavLink href="/discover" active={isDiscover}>
+        Discover
       </NavLink>
       <NavLink href="/cooks" active={isCooks}>
         Cooks
