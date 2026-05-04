@@ -66,7 +66,7 @@ export type SignInResult =
   | { kind: 'error'; message: string };
 
 export type SignUpResult =
-  | { kind: 'success'; email: string }
+  | { kind: 'success'; email: string; username: string }
   | { kind: 'error'; message: string };
 
 export type SimpleResult = { kind: 'success' } | { kind: 'error'; message: string };
@@ -169,7 +169,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             },
           },
         });
-        return { kind: 'success', email };
+        // Return the opaque Username (UUID) — verify must use this, not
+        // the email, because email aliases aren't reliable on UNCONFIRMED
+        // users (multiple unconfirmed users can share an email; lookup
+        // returns ambiguous and 400s the verify call).
+        return { kind: 'success', email, username: opaqueUsername };
       } catch (err) {
         return { kind: 'error', message: errorMessage(err) };
       }

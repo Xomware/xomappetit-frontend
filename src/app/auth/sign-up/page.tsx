@@ -57,7 +57,14 @@ export default function SignUpPage() {
     setSubmitting(false);
 
     if (result.kind === 'success') {
-      window.location.assign(`/auth/verify?email=${encodeURIComponent(result.email)}`);
+      // Pass the opaque Username (UUID) so /auth/verify can call
+      // confirmSignUp directly. Email-alias lookup is unreliable on
+      // UNCONFIRMED users; passing the UUID is the safe path.
+      const params = new URLSearchParams({
+        email: result.email,
+        username: result.username,
+      });
+      window.location.assign(`/auth/verify?${params.toString()}`);
       return;
     }
     setError(result.message);

@@ -11,6 +11,12 @@ import { useAuth } from '@/lib/auth-context';
 export default function VerifyPage() {
   const { confirmSignUp, resendCode } = useAuth();
   const [email, setEmail] = useState('');
+  // Opaque Cognito Username (UUID) from sign-up. confirmSignUp uses this
+  // directly because email aliases aren't reliable on UNCONFIRMED users
+  // (Cognito only enforces email uniqueness post-confirmation; alias
+  // resolution returns ambiguous when multiple unconfirmed users share
+  // an email and 400s the verify call).
+  const [username, setUsername] = useState('');
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [resending, setResending] = useState(false);
@@ -21,7 +27,9 @@ export default function VerifyPage() {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const e = params.get('email');
+    const u = params.get('username');
     if (e) setEmail(e);
+    if (u) setUsername(u);
   }, []);
 
   async function onSubmit(e: FormEvent) {
@@ -29,7 +37,10 @@ export default function VerifyPage() {
     setError(null);
     setInfo(null);
     setSubmitting(true);
-    const result = await confirmSignUp(email.trim(), code.trim());
+    // Prefer the UUID Username from sign-up. Fall back to email for
+    // direct-URL access (e.g. confirmed users requesting a code).
+    const identifier = username.trim() || email.trim();
+    const result = await confirmSignUp(identifier, code.trim());
     setSubmitting(false);
 
     if (result.kind === 'success') {
@@ -42,12 +53,13 @@ export default function VerifyPage() {
   async function onResend() {
     setError(null);
     setInfo(null);
-    if (!email.trim()) {
+    const identifier = username.trim() || email.trim();
+    if (!identifier) {
       setError('Enter your email first.');
       return;
     }
     setResending(true);
-    const result = await resendCode(email.trim());
+    const result = await resendCode(identifier);
     setResending(false);
     if (result.kind === 'success') {
       setInfo('Code resent. Check your inbox.');
