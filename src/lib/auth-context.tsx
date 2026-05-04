@@ -290,7 +290,13 @@ export function useRequireAuth() {
 // ---- Helpers ----
 
 function errorMessage(err: unknown): string {
-  if (err instanceof Error) return err.message;
+  // Amplify v6 puts the Cognito exception class on err.name and the human
+  // text on err.message — surface both so the UI doesn't show a meaningless
+  // 'Authentication required' when something specific went wrong.
+  if (err instanceof Error) {
+    const name = err.name && err.name !== 'Error' ? err.name : '';
+    return name && err.message ? `${name}: ${err.message}` : err.message || name || 'Unexpected error';
+  }
   if (typeof err === 'string') return err;
   return 'Unexpected error';
 }
