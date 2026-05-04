@@ -152,12 +152,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
             : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        // preferred_username CAN'T be a userAttribute during SignUp because
+        // alias_attributes includes it — Cognito reserves alias attrs for
+        // confirmed accounts only. Pass it via clientMetadata so the
+        // PostConfirmation Lambda picks it up and writes it to the users
+        // DDB row (and later to the Cognito alias once we wire that).
         await amplifySignUp({
           username: opaqueUsername,
           password,
           options: {
             userAttributes: {
               email,
+            },
+            clientMetadata: {
               preferred_username: preferredUsername,
             },
           },
