@@ -6,9 +6,13 @@ import {
   LogCookInput,
   commentsApi,
   cooksApi,
+  friendsApi,
   recipesApi,
 } from './api';
 import { useAuth } from './auth-context';
+
+const FRIENDS_KEY = 'friends';
+const FEED_KEY = 'friends:feed';
 
 const RECIPES_KEY = 'recipes';
 const recipeKey = (id: string) => ['recipe', id] as const;
@@ -42,6 +46,56 @@ export function useRecipes() {
     deleteRecipe: async (id: string) => {
       await recipesApi.delete(id);
       mutate(RECIPES_KEY);
+    },
+  };
+}
+
+/** Friends feed — recipes from caller + accepted friends, newest first. */
+export function useFeed() {
+  const { isAuthenticated } = useAuth();
+  const { data, error, isLoading, mutate: mutateFeed } = useSWR(
+    isAuthenticated ? FEED_KEY : null,
+    () => friendsApi.feed(),
+  );
+  return {
+    items: data?.items ?? [],
+    friendCount: data?.friendCount ?? 0,
+    isLoading: isAuthenticated ? isLoading : false,
+    error,
+    refresh: () => mutateFeed(),
+  };
+}
+
+/** All friendship state in one shot, plus mutator helpers. */
+export function useFriends() {
+  const { isAuthenticated } = useAuth();
+  const { data, error, isLoading, mutate: mutateFriends } = useSWR(
+    isAuthenticated ? FRIENDS_KEY : null,
+    () => friendsApi.list(),
+  );
+  return {
+    friends: data?.friends ?? [],
+    incomingPending: data?.incomingPending ?? [],
+    outgoingPending: data?.outgoingPending ?? [],
+    isLoading: isAuthenticated ? isLoading : false,
+    error,
+    refresh: () => mutateFriends(),
+    addFriend: async (friendUserId: string) => {
+      const res = await friendsApi.add(friendUserId);
+      mutate(FRIENDS_KEY);
+      mutate(FEED_KEY);
+      return res;
+    },
+    respond: async (friendUserId: string, action: 'accept' | 'decline') => {
+      const res = await friendsApi.respond(friendUserId, action);
+      mutate(FRIENDS_KEY);
+      mutate(FEED_KEY);
+      return res;
+    },
+    remove: async (friendUserId: string) => {
+      await friendsApi.remove(friendUserId);
+      mutate(FRIENDS_KEY);
+      mutate(FEED_KEY);
     },
   };
 }

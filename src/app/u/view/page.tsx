@@ -3,7 +3,7 @@ import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useRequireAuth, useAuth } from '@/lib/auth-context';
-import { useUserRecipes } from '@/lib/hooks';
+import { useUserRecipes, useFriends } from '@/lib/hooks';
 import { usersApi, PublicUserProfile } from '@/lib/users';
 import { RecipeCard } from '@/components/RecipeCard';
 import Loader from '@/components/Loader';
@@ -79,7 +79,7 @@ function UserPageInner() {
             </span>
           )}
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <h1 className="font-display text-2xl font-black tracking-tight truncate">
             {profile.displayName || `@${profile.preferredUsername}`}
           </h1>
@@ -87,6 +87,7 @@ function UserPageInner() {
             <p className="text-sm text-zinc-400">@{profile.preferredUsername}</p>
           )}
         </div>
+        {!isSelf && <FriendButton targetUserId={profile.userId} />}
       </header>
 
       {isPrivate && !isSelf ? (
@@ -116,5 +117,76 @@ function UserPageInner() {
         </section>
       )}
     </main>
+  );
+}
+
+function FriendButton({ targetUserId }: { targetUserId: string }) {
+  const { friends, incomingPending, outgoingPending, addFriend, respond, remove } = useFriends();
+  const [busy, setBusy] = useState(false);
+
+  const isFriend = friends.some((f) => f.userId === targetUserId);
+  const incoming = incomingPending.find((r) => r.userId === targetUserId);
+  const outgoing = outgoingPending.some((r) => r.userId === targetUserId);
+
+  const wrap = (fn: () => Promise<unknown>) => async () => {
+    setBusy(true);
+    try { await fn(); } finally { setBusy(false); }
+  };
+
+  if (isFriend) {
+    return (
+      <button
+        type="button"
+        onClick={wrap(() => remove(targetUserId))}
+        disabled={busy}
+        className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 text-zinc-100 px-4 py-2 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-coral-400/40 disabled:opacity-50 shrink-0"
+      >
+        ✓ Friends
+      </button>
+    );
+  }
+  if (incoming) {
+    return (
+      <div className="flex gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={wrap(() => respond(targetUserId, 'accept'))}
+          disabled={busy}
+          className="bg-gradient-to-r from-coral-500 to-coral-400 hover:from-coral-400 hover:to-coral-300 text-white px-3 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition focus:outline-none focus:ring-2 focus:ring-coral-400/50 disabled:opacity-50"
+        >
+          Accept
+        </button>
+        <button
+          type="button"
+          onClick={wrap(() => respond(targetUserId, 'decline'))}
+          disabled={busy}
+          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 px-3 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50"
+        >
+          Decline
+        </button>
+      </div>
+    );
+  }
+  if (outgoing) {
+    return (
+      <button
+        type="button"
+        onClick={wrap(() => remove(targetUserId))}
+        disabled={busy}
+        className="bg-zinc-900 border border-zinc-800 text-zinc-400 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50 shrink-0"
+      >
+        Cancel request
+      </button>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={wrap(() => addFriend(targetUserId))}
+      disabled={busy}
+      className="bg-gradient-to-r from-coral-500 to-coral-400 hover:from-coral-400 hover:to-coral-300 text-white px-4 py-2 rounded-lg text-sm font-bold uppercase tracking-wide transition shadow-lg shadow-coral-500/20 focus:outline-none focus:ring-2 focus:ring-coral-400/50 disabled:opacity-50 shrink-0"
+    >
+      + Add friend
+    </button>
   );
 }

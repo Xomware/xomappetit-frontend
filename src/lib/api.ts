@@ -73,6 +73,30 @@ export interface RecipesPublicPage {
   nextCursor: string | null;
 }
 
+export interface FriendsListResponse {
+  friends: { userId: string; since: string }[];
+  incomingPending: { userId: string; requestedAt: string }[];
+  outgoingPending: { userId: string; requestedAt: string }[];
+}
+
+export interface FriendsFeedResponse {
+  items: Recipe[];
+  friendCount: number;
+}
+
+export const friendsApi = {
+  list: (): Promise<FriendsListResponse> =>
+    apiPost<FriendsListResponse>('/friends/list'),
+  add: (friendUserId: string): Promise<{ status: 'pending' | 'accepted'; alreadyFriends?: boolean; alreadyRequested?: boolean; mutualRequest?: boolean }> =>
+    apiPost('/friends/add', { friendUserId }),
+  respond: (friendUserId: string, action: 'accept' | 'decline'): Promise<{ status: 'accepted' | 'declined' }> =>
+    apiPost('/friends/respond', { friendUserId, action }),
+  remove: (friendUserId: string): Promise<{ status: 'removed' }> =>
+    apiPost('/friends/remove', { friendUserId }),
+  feed: (limit = 50): Promise<FriendsFeedResponse> =>
+    apiPost<FriendsFeedResponse>('/friends/feed', { limit }),
+};
+
 export const recipesApi = {
   /** Caller's own recipes (default), or another user's public recipes when `authorUserId` is set. */
   list: (authorUserId?: string): Promise<Recipe[]> =>
