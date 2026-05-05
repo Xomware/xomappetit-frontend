@@ -25,46 +25,23 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <ProfileHeader />
-      <main className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
-        <ProfileCard
-          profile={profile}
-          onEdit={() => setEditOpen(true)}
-          onUploadAvatar={uploadAvatar}
-        />
-        <StatsGrid />
-      </main>
+    <main className="max-w-3xl mx-auto px-4 py-6 sm:py-10 space-y-6">
+      <h1 className="font-display text-2xl sm:text-3xl font-black uppercase tracking-wide">
+        Profile
+      </h1>
+      <ProfileCard
+        profile={profile}
+        onEdit={() => setEditOpen(true)}
+        onUploadAvatar={uploadAvatar}
+      />
+      <StatsGrid />
       <EditProfileModal
         open={editOpen}
         profile={profile}
         onClose={() => setEditOpen(false)}
         onSave={edit}
       />
-    </div>
-  );
-}
-
-function ProfileHeader() {
-  return (
-    <header className="border-b border-zinc-800 bg-gradient-to-b from-zinc-950 to-zinc-950/80 backdrop-blur sticky top-0 z-30">
-      <div className="max-w-3xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
-        <Link href="/" className="group inline-flex items-center gap-2">
-          <span className="text-zinc-500 group-hover:text-coral-300 transition text-lg">
-            ←
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-black tracking-tight">
-            <span className="chef-stamp">Profile</span>
-          </h1>
-        </Link>
-        <Link
-          href="/"
-          className="text-xs text-zinc-400 hover:text-coral-300 transition uppercase tracking-wider font-semibold"
-        >
-          Back to recipes
-        </Link>
-      </div>
-    </header>
+    </main>
   );
 }
 

@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useRequireAuth, useAuth } from '@/lib/auth-context';
 import { useCook, useRecipe } from '@/lib/hooks';
+import { useUsersById } from '@/lib/use-users-by-id';
 import { CookForm, CookFormValues } from '@/components/CookForm';
 import { RatingStars } from '@/components/RatingStars';
 import { CookComments } from '@/components/CookComments';
 import Loader from '@/components/Loader';
+import { PublicUserProfile } from '@/lib/users';
 
 export default function CookViewPage() {
   return (
@@ -25,6 +27,10 @@ function CookViewInner() {
   const { user } = useAuth();
   const { cook, isLoading, error, edit, remove } = useCook(cookId);
   const { recipe } = useRecipe(cook?.recipeId ?? null);
+  const { map: users } = useUsersById([
+    ...(cook?.chefs ?? []),
+    ...(cook?.diners ?? []),
+  ]);
   const [editing, setEditing] = useState(false);
 
   if (authLoading || !isAuthenticated) return <Fallback caption="heating up…" />;
@@ -164,12 +170,19 @@ function CookViewInner() {
           )}
         </section>
 
-        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 brand-stamp space-y-3">
-          <PeopleList title="Chefs" userIds={cook.chefs} highlightUserId={user?.sub ?? null} />
-          <PeopleList title="Diners" userIds={cook.diners} highlightUserId={user?.sub ?? null} />
-          <p className="text-[11px] text-zinc-500 italic pt-1 border-t border-zinc-800">
-            Showing user IDs. Display names land with the friends feature.
-          </p>
+        <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 brand-stamp space-y-4">
+          <PeopleList
+            title="Chefs"
+            userIds={cook.chefs}
+            users={users}
+            highlightUserId={user?.sub ?? null}
+          />
+          <PeopleList
+            title="Diners"
+            userIds={cook.diners}
+            users={users}
+            highlightUserId={user?.sub ?? null}
+          />
         </section>
 
         {isChef && (
@@ -202,10 +215,12 @@ function CookViewInner() {
 function PeopleList({
   title,
   userIds,
+  users,
   highlightUserId,
 }: {
   title: string;
   userIds: string[];
+  users: Map<string, PublicUserProfile>;
   highlightUserId: string | null;
 }) {
   return (
@@ -217,31 +232,64 @@ function PeopleList({
         <div className="text-xs text-zinc-500 italic">none</div>
       ) : (
         <ul className="flex flex-wrap gap-2">
-          {userIds.map((id) => {
-            const isMe = id === highlightUserId;
-            return (
-              <li
-                key={id}
-                className={`text-xs font-mono px-2.5 py-1 rounded-md border ${
-                  isMe
-                    ? 'bg-coral-500/15 border-coral-500/40 text-coral-200'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-400'
-                }`}
-                title={id}
-              >
-                {isMe ? 'you' : shortId(id)}
-              </li>
-            );
-          })}
+          {userIds.map((id) => (
+            <PersonPill
+              key={id}
+              userId={id}
+              profile={users.get(id)}
+              isMe={id === highlightUserId}
+            />
+          ))}
         </ul>
       )}
     </div>
   );
 }
 
-function shortId(id: string): string {
-  if (id.length <= 12) return id;
-  return id.slice(0, 8) + '…';
+function PersonPill({
+  userId,
+  profile,
+  isMe,
+}: {
+  userId: string;
+  profile: PublicUserProfile | undefined;
+  isMe: boolean;
+}) {
+  const handle = profile?.preferredUsername;
+  const name = profile?.displayName?.trim();
+  const avatarUrl = profile?.avatarUrl;
+  const label = isMe ? 'you' : name || (handle ? `@${handle}` : `${userId.slice(0, 6)}…`);
+  const initial = (name || handle || '?').charAt(0).toUpperCase();
+
+  const cls = isMe
+    ? 'bg-coral-500/15 border-coral-500/40 text-coral-100'
+    : 'bg-zinc-900 border-zinc-800 text-zinc-200 hover:border-coral-500/50 hover:text-coral-200';
+
+  const inner = (
+    <span className={`inline-flex items-center gap-2 text-xs font-medium pl-1 pr-3 py-1 rounded-full border transition ${cls}`}>
+      <span className="h-6 w-6 rounded-full overflow-hidden bg-zinc-800 grid place-items-center shrink-0">
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="h-full w-full grid place-items-center bg-gradient-to-br from-coral-500 to-flame-500 text-white text-[10px] font-black uppercase">
+            {initial}
+          </span>
+        )}
+      </span>
+      <span className="truncate max-w-[10rem]">{label}</span>
+    </span>
+  );
+
+  return (
+    <li>
+      {handle && !isMe ? (
+        <Link href={`/u/view?handle=${encodeURIComponent(handle)}`}>{inner}</Link>
+      ) : (
+        inner
+      )}
+    </li>
+  );
 }
 
 function formatDate(iso: string): string {
