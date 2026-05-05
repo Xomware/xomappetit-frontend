@@ -69,7 +69,14 @@ export function CookForm({
     if (callerId && !seed.includes(callerId)) return [callerId, ...seed];
     return seed;
   });
-  const [diners, setDiners] = useState<string[]>(initial?.diners ?? []);
+  // For new cooks (no `initial.diners` provided), seed the caller as a
+  // diner too — most cooks are 'I cooked it AND ate some'. The picker
+  // can drop them if it was a cook-for-someone-else session. For edit
+  // mode (initial.diners provided, even if []), leave it as-is.
+  const [diners, setDiners] = useState<string[]>(() => {
+    if (initial?.diners !== undefined) return initial.diners;
+    return callerId ? [callerId] : [];
+  });
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [photoUrl, setPhotoUrl] = useState(initial?.photoUrl ?? '');
   const [ratings, setRatings] = useState<Record<RatingAxisKey, number>>({
@@ -316,6 +323,7 @@ function WhoStep({
         userIds={chefs}
         callerId={callerId}
         profiles={profiles}
+        lockSelf
         onPick={openChefs}
         onRemove={removeChef}
         emptyHint="You'll be added automatically — pick others if it was a team effort."
@@ -327,7 +335,7 @@ function WhoStep({
         profiles={profiles}
         onPick={openDiners}
         onRemove={removeDiner}
-        emptyHint="Optional — pick the people you served."
+        emptyHint="Pick the people you served."
       />
     </div>
   );
@@ -338,6 +346,7 @@ function PeopleSection({
   userIds,
   callerId,
   profiles,
+  lockSelf,
   onPick,
   onRemove,
   emptyHint,
@@ -346,6 +355,8 @@ function PeopleSection({
   userIds: string[];
   callerId: string;
   profiles: Map<string, PublicUserProfile>;
+  /** When true, the caller's chip can't be removed (chefs section). */
+  lockSelf?: boolean;
   onPick: () => void;
   onRemove: (id: string) => void;
   emptyHint: string;
@@ -384,7 +395,7 @@ function PeopleSection({
                 }`}
               >
                 <span className="px-2.5 py-1.5">{display}</span>
-                {!isMe && (
+                {!(isMe && lockSelf) && (
                   <button
                     type="button"
                     onClick={() => onRemove(id)}
