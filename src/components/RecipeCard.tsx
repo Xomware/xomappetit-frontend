@@ -1,23 +1,14 @@
 'use client';
 import Link from 'next/link';
-import { Recipe } from '@/types';
+import { Recipe, TAG_LABELS } from '@/types';
 import { PublicUserProfile } from '@/lib/users';
 import { PrivacyBadge } from './PrivacyBadge';
 import LikeButton from './LikeButton';
 
 interface Props {
   recipe: Recipe;
-  /** Public profile of the recipe author, when resolved. Card renders
-   *  a fallback (`@handle` or "a chef") when not provided yet. */
+  /** Public profile of the recipe author, when resolved. */
   author?: PublicUserProfile | null;
-}
-
-function diffColor(d: string) {
-  return d === 'Easy'
-    ? 'text-emerald-400'
-    : d === 'Medium'
-    ? 'text-amber-400'
-    : 'text-coral-400';
 }
 
 export function RecipeCard({ recipe, author }: Props) {
@@ -25,6 +16,9 @@ export function RecipeCard({ recipe, author }: Props) {
   const name = author?.displayName ?? null;
   const avatarUrl = author?.avatarUrl ?? null;
   const initial = (name || handle || '?').charAt(0).toUpperCase();
+  // Difficulty is 1..5 going forward, but back-compat for any unmigrated rows.
+  const diff = typeof recipe.difficulty === 'number' ? recipe.difficulty : 3;
+  const tags = recipe.tags ?? [];
   return (
     <Link
       href={`/recipes/view?id=${encodeURIComponent(recipe.recipeId)}`}
@@ -35,14 +29,18 @@ export function RecipeCard({ recipe, author }: Props) {
           <h3 className="font-bold text-base truncate group-hover:text-coral-300 transition">
             {recipe.name}
           </h3>
-          <div className="text-xs flex items-center gap-1.5 mt-0.5">
-            <span className={`font-semibold ${diffColor(recipe.difficulty)}`}>
-              {recipe.difficulty}
-            </span>
+          <div className="text-xs flex items-center gap-1.5 mt-0.5 text-zinc-400">
+            <DifficultyDots value={diff} />
             {recipe.timeMinutes > 0 && (
               <>
                 <span className="text-zinc-700">·</span>
-                <span className="text-zinc-400">{recipe.timeMinutes}m</span>
+                <span>{recipe.timeMinutes}m</span>
+              </>
+            )}
+            {recipe.servings > 0 && (
+              <>
+                <span className="text-zinc-700">·</span>
+                <span>{recipe.servings} {recipe.servings === 1 ? 'serv' : 'servs'}</span>
               </>
             )}
           </div>
@@ -54,10 +52,22 @@ export function RecipeCard({ recipe, author }: Props) {
         <p className="text-xs text-zinc-400 line-clamp-2">{recipe.description}</p>
       )}
 
-      {recipe.proteinSource && (
-        <span className="inline-block bg-coral-500/15 text-coral-300 text-xs px-2 py-0.5 rounded-full">
-          {recipe.proteinSource}
-        </span>
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {tags.slice(0, 4).map((t) => (
+            <span
+              key={t}
+              className="inline-block bg-zinc-800/80 text-zinc-300 text-[10px] px-1.5 py-0.5 rounded-full"
+            >
+              {TAG_LABELS[t] ?? t}
+            </span>
+          ))}
+          {tags.length > 4 && (
+            <span className="inline-block text-[10px] text-zinc-500 px-1">
+              +{tags.length - 4}
+            </span>
+          )}
+        </div>
       )}
 
       <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60 gap-2">
@@ -72,7 +82,7 @@ export function RecipeCard({ recipe, author }: Props) {
             <span className="text-zinc-300 font-semibold">{recipe.cookCount}</span>{' '}
             {recipe.cookCount === 1 ? 'cook' : 'cooks'}
           </span>
-          {recipe.ratingCount > 0 && (
+          {recipe.ratingCount > 0 && recipe.avgRating != null && (
             <span className="flex items-center gap-1 shrink-0">
               <span className="text-coral-300">★</span>
               <span className="text-zinc-300 font-semibold">
@@ -107,5 +117,21 @@ export function RecipeCard({ recipe, author }: Props) {
         )}
       </div>
     </Link>
+  );
+}
+
+function DifficultyDots({ value }: { value: number }) {
+  const v = Math.max(1, Math.min(5, Math.round(value)));
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`Difficulty ${v} of 5`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span
+          key={n}
+          className={`h-1.5 w-1.5 rounded-full ${
+            n <= v ? 'bg-coral-400' : 'bg-zinc-700'
+          }`}
+        />
+      ))}
+    </span>
   );
 }
