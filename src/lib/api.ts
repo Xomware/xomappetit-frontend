@@ -176,3 +176,37 @@ export const cookCommentsApi = {
   delete: (cookId: string, commentId: string): Promise<void> =>
     apiPost<void>('/cooks/comment-delete', { cookId, commentId }),
 };
+
+export type NotificationType =
+  | 'friend_request'
+  | 'friend_accept'
+  | 'recipe_liked'
+  | 'comment_added';
+
+export interface Notification {
+  userId: string;
+  sortKey: string;
+  notifId: string;
+  type: NotificationType;
+  actorUserId: string;
+  refType: 'recipe' | 'cook' | 'friend';
+  refId: string;
+  meta: { recipeName?: string } | null;
+  read: boolean;
+  createdAt: string;
+}
+
+export interface NotificationsListResponse {
+  items: Notification[];
+  nextCursor: string | null;
+  unreadInPage: number;
+}
+
+export const notificationsApi = {
+  list: (opts?: { limit?: number; cursor?: string }): Promise<NotificationsListResponse> =>
+    apiPost<NotificationsListResponse>('/notifications/list', opts ?? {}),
+  markRead: (sortKey: string): Promise<{ updated: number }> =>
+    apiPost('/notifications/mark-read', { sortKey }),
+  markAllRead: (): Promise<{ updated: number }> =>
+    apiPost('/notifications/mark-read', { all: true }),
+};

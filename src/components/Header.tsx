@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { useProfile } from '@/lib/use-profile';
-import { useFriends } from '@/lib/hooks';
+import { useFriends, useNotifications } from '@/lib/hooks';
 import Brand from './Brand';
 
 export default function Header() {
@@ -20,6 +20,7 @@ export default function Header() {
         </Link>
         <div className="flex items-center gap-2">
           <NavLinks />
+          <NotificationsBell />
           <UserMenu />
         </div>
       </div>
@@ -77,6 +78,40 @@ function NavLink({ href, active, badge, children }: { href: string; active: bool
           {badge > 9 ? '9+' : badge}
         </span>
       ) : null}
+    </Link>
+  );
+}
+
+function NotificationsBell() {
+  const pathname = usePathname() || '/';
+  const isActive = pathname.startsWith('/notifications');
+  const { unreadCount } = useNotifications();
+
+  const cls = isActive
+    ? 'bg-zinc-800 text-coral-300'
+    : 'text-zinc-400 hover:text-white hover:bg-zinc-800';
+
+  return (
+    <Link
+      href="/notifications"
+      aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+      className={`relative inline-flex items-center justify-center h-9 w-9 rounded-md transition focus:outline-none focus:ring-2 focus:ring-coral-400/50 ${cls}`}
+    >
+      {/* Bell icon */}
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" aria-hidden="true">
+        <path
+          d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6V11a6 6 0 0 0-5-5.91V4a1 1 0 1 0-2 0v1.09A6 6 0 0 0 6 11v5l-2 2v1h16v-1l-2-2z"
+          fill="currentColor"
+        />
+      </svg>
+      {unreadCount > 0 && (
+        <span
+          className="absolute top-0 right-0 min-w-[1rem] h-4 px-1 rounded-full bg-coral-500 text-[10px] leading-4 font-bold text-white text-center"
+          aria-hidden="true"
+        >
+          {unreadCount > 9 ? '9+' : unreadCount}
+        </span>
+      )}
     </Link>
   );
 }

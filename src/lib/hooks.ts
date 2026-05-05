@@ -8,12 +8,14 @@ import {
   cookCommentsApi,
   cooksApi,
   friendsApi,
+  notificationsApi,
   recipesApi,
 } from './api';
 import { useAuth } from './auth-context';
 
 const FRIENDS_KEY = 'friends';
 const FEED_KEY = 'friends:feed';
+const NOTIFICATIONS_KEY = 'notifications';
 
 const RECIPES_KEY = 'recipes';
 const recipeKey = (id: string) => ['recipe', id] as const;
@@ -65,6 +67,59 @@ export function useFeed() {
     isLoading: isAuthenticated ? isLoading : false,
     error,
     refresh: () => mutateFeed(),
+  };
+}
+
+/** Notifications inbox + unread count + mutators. */
+export function useNotifications() {
+  const { isAuthenticated } = useAuth();
+  const { data, error, isLoading, mutate: mutateNotifs } = useSWR(
+    isAuthenticated ? NOTIFICATIONS_KEY : null,
+    () => notificationsApi.list({ limit: 50 }),
+    {
+      // Poll every 30s so the bell badge stays fresh without a websocket.
+      refreshInterval: 30_000,
+      revalidateOnFocus: true,
+    },
+  );
+  const items = data?.items ?? [];
+  const unreadCount = items.filter((n) => !n.read).length;
+
+  return {
+    items,
+    unreadCount,
+    isLoading: isAuthenticated ? isLoading : false,
+    error,
+    refresh: () => mutateNotifs(),
+    markRead: async (sortKey: string) => {
+      // Optimistic flip
+      mutateNotifs(
+        (prev) => prev && {
+          ...prev,
+          items: prev.items.map((n) => (n.sortKey === sortKey ? { ...n, read: true } : n)),
+        },
+        { revalidate: false },
+      );
+      try {
+        await notificationsApi.markRead(sortKey);
+      } finally {
+        mutateNotifs();
+      }
+    },
+    markAllRead: async () => {
+      mutateNotifs(
+        (prev) => prev && {
+          ...prev,
+          items: prev.items.map((n) => ({ ...n, read: true })),
+        },
+        { revalidate: false },
+      );
+      try {
+        await notificationsApi.markAllRead();
+      } finally {
+        mutateNotifs();
+      }
+    },
   };
 }
 
