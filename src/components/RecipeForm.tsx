@@ -20,6 +20,7 @@ import IngredientsEditor from './IngredientsEditor';
 import InstructionsEditor from './InstructionsEditor';
 import ChipPickerModal, { ChipOption } from './ChipPickerModal';
 import IngredientPickerModal from './IngredientPickerModal';
+import NumberInput from './NumberInput';
 import { rememberIngredient } from '@/lib/common-ingredients';
 import { recipesApi, ComputeMacrosResult } from '@/lib/api';
 
@@ -399,23 +400,19 @@ function BasicsStep({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Time (min)</label>
-          <input
-            type="number"
-            inputMode="numeric"
+          <NumberInput
             className={inputCls}
             value={timeMinutes}
-            onChange={(e) => setTimeMinutes(+e.target.value)}
+            onChange={(n) => setTimeMinutes(n ?? 0)}
             min={0}
           />
         </div>
         <div>
           <label className={labelCls}>Servings</label>
-          <input
-            type="number"
-            inputMode="numeric"
+          <NumberInput
             className={inputCls}
             value={servings}
-            onChange={(e) => setServings(Math.max(1, +e.target.value || 1))}
+            onChange={(n) => setServings(n == null || n < 1 ? 1 : n)}
             min={1}
             max={50}
           />
@@ -502,11 +499,40 @@ function StepsStep({
   setInstructions: (v: Instruction[]) => void;
   ingredients: Ingredient[];
 }) {
+  // Find ingredients that have a name but aren't tagged in any step yet.
+  // Hides until the user has at least one step + one ingredient — the
+  // warning is irrelevant before then.
+  const usedIdx = new Set<number>();
+  for (const step of instructions) {
+    for (const idx of step.ingredientIndexes ?? []) usedIdx.add(idx);
+  }
+  const unused = ingredients
+    .map((ing, idx) => ({ ing, idx }))
+    .filter(({ ing }) => ing.name.trim().length > 0)
+    .filter(({ idx }) => !usedIdx.has(idx))
+    .map(({ ing }) => ing.name.trim());
+
+  const showWarning = instructions.some((s) => s.text.trim()) && unused.length > 0;
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-zinc-400">
         Write each step and tag which ingredients it uses.
       </p>
+      {showWarning && (
+        <div
+          role="status"
+          className="bg-amber-500/10 border border-amber-500/30 text-amber-200 text-xs rounded-lg px-3 py-2 flex items-start gap-2"
+        >
+          <span aria-hidden="true">⚠</span>
+          <p className="flex-1">
+            <span className="font-semibold">
+              {unused.length} {unused.length === 1 ? 'ingredient isn’t' : 'ingredients aren’t'} used in any step:
+            </span>{' '}
+            <span className="text-amber-100">{unused.join(', ')}</span>
+          </p>
+        </div>
+      )}
       <InstructionsEditor
         steps={instructions}
         ingredients={ingredients}
@@ -656,12 +682,10 @@ function FinishStep({
               <span className="text-[10px] uppercase tracking-wider text-zinc-500">
                 {label}
               </span>
-              <input
-                type="number"
-                inputMode="numeric"
+              <NumberInput
                 className={inputCls}
                 value={val}
-                onChange={(e) => setter(+e.target.value)}
+                onChange={(n) => setter(n ?? 0)}
                 min={0}
               />
             </div>

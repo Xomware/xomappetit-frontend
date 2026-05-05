@@ -9,6 +9,7 @@ import {
   UNITLESS_UNITS,
 } from '@/types';
 import { ingredientSuggestions } from '@/lib/common-ingredients';
+import NumberInput from './NumberInput';
 
 interface Props {
   ingredients: Ingredient[];
@@ -70,20 +71,14 @@ export default function IngredientsEditor({ ingredients, onChange }: Props) {
             key={i}
             className="grid grid-cols-[70px_90px_1fr_auto] sm:grid-cols-[80px_100px_1fr_auto] gap-2 items-center"
           >
-            <input
-              type="number"
-              inputMode="decimal"
+            <NumberInput
+              decimal
               min={0}
-              step="0.25"
               placeholder="qty"
               disabled={unitless}
               className={inputCls + (unitless ? ' opacity-40' : '')}
-              value={ing.amount ?? ''}
-              onChange={(e) =>
-                update(i, {
-                  amount: e.target.value === '' ? null : Number(e.target.value),
-                })
-              }
+              value={ing.amount}
+              onChange={(amount) => update(i, { amount })}
             />
             <select
               className={inputCls}
