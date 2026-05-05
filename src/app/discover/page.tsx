@@ -8,7 +8,7 @@ import Loader from '@/components/Loader';
 
 export default function DiscoverPage() {
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
-  const { recipes, isLoading } = usePublicRecipes();
+  const { recipes, nextCursor, isLoading, loadMore } = usePublicRecipes();
   const { map: users } = useUsersById(recipes.map((r) => r.authorUserId));
   const dataReady = isAuthenticated && !isLoading;
 
@@ -31,6 +31,18 @@ export default function DiscoverPage() {
           {recipes.map((r) => (
             <RecipeCard key={r.recipeId} recipe={r} author={users.get(r.authorUserId)} />
           ))}
+        </div>
+      )}
+
+      {dataReady && nextCursor && (
+        <div className="text-center pt-2">
+          <button
+            type="button"
+            onClick={() => loadMore()}
+            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 text-zinc-100 px-5 py-2 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-coral-400/40"
+          >
+            Load more
+          </button>
         </div>
       )}
     </main>

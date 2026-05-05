@@ -230,3 +230,36 @@ export const reportsApi = {
   add: (refType: ReportRefType, refId: string, reason?: string): Promise<{ status: 'received' }> =>
     apiPost('/reports/add', { refType, refId, reason: reason || '' }),
 };
+
+export const searchApi = {
+  recipes: (q: string, limit = 30): Promise<{ items: Recipe[] }> =>
+    apiPost<{ items: Recipe[] }>('/recipes/search', { q, limit }),
+};
+
+const USERS_API_BASE_URL =
+  process.env.NEXT_PUBLIC_USERS_API_URL || 'https://api.xomware.com';
+
+/** Cross-domain user search via xomware /users/search. Direct fetch
+ * because USERS_API_BASE differs from xomappetit's API_BASE. */
+export const usersSearchApi = {
+  byHandlePrefix: async (
+    q: string,
+    limit = 20,
+  ): Promise<{ users: import('./users').PublicUserProfile[] }> => {
+    const auth = await authHeaders();
+    const res = await fetch(`${USERS_API_BASE_URL}/users/search`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...auth },
+      body: JSON.stringify({ q, limit }),
+    });
+    if (res.status === 401) {
+      handleUnauthorized();
+      throw new AuthRequiredError();
+    }
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Users search ${res.status}: ${text}`);
+    }
+    return res.json();
+  },
+};

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import useSWR, { mutate } from 'swr';
 import {
   CreateRecipeInput,
@@ -185,18 +186,45 @@ export function useFriends() {
   };
 }
 
-/** Public recipes feed — anyone signed in can read this. */
+/**
+ * Public recipes feed with cursor pagination.
+ *
+ * SWR fetches the first page; subsequent pages live in local state and
+ * append on `loadMore()`. Refetch on focus is disabled to avoid
+ * obliterating the appended state.
+ */
 export function usePublicRecipes() {
   const { isAuthenticated } = useAuth();
   const { data, error, isLoading } = useSWR(
     isAuthenticated ? 'recipes:public' : null,
     () => recipesApi.listPublic({ limit: 50 }),
+    { revalidateOnFocus: false },
   );
+
+  const [extraPages, setExtraPages] = useState<{
+    items: Awaited<ReturnType<typeof recipesApi.listPublic>>['items'];
+    nextCursor: string | null;
+  }[]>([]);
+
+  const recipes = [
+    ...(data?.items ?? []),
+    ...extraPages.flatMap((p) => p.items),
+  ];
+  const nextCursor =
+    extraPages.length > 0
+      ? extraPages[extraPages.length - 1].nextCursor
+      : data?.nextCursor ?? null;
+
   return {
-    recipes: data?.items ?? [],
-    nextCursor: data?.nextCursor ?? null,
+    recipes,
+    nextCursor,
     isLoading: isAuthenticated ? isLoading : false,
     error,
+    loadMore: async () => {
+      if (!nextCursor) return;
+      const next = await recipesApi.listPublic({ limit: 50, cursor: nextCursor });
+      setExtraPages((prev) => [...prev, { items: next.items, nextCursor: next.nextCursor }]);
+    },
   };
 }
 
