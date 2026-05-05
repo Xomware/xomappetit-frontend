@@ -6,7 +6,7 @@ import { useRequireAuth, useAuth } from '@/lib/auth-context';
 import { useCook, useRecipe } from '@/lib/hooks';
 import { useUsersById } from '@/lib/use-users-by-id';
 import { CookForm, CookFormValues } from '@/components/CookForm';
-import { RatingStars } from '@/components/RatingStars';
+import { IconRating, RATING_AXES } from '@/components/IconRating';
 import { CookComments } from '@/components/CookComments';
 import Loader from '@/components/Loader';
 import { PublicUserProfile } from '@/lib/users';
@@ -52,6 +52,10 @@ function CookViewInner() {
       notes: values.notes,
       photoUrl: values.photoUrl,
       rating: values.rating,
+      spiciness: values.spiciness,
+      sweetness: values.sweetness,
+      saltiness: values.saltiness,
+      richness: values.richness,
     });
     setEditing(false);
   };
@@ -96,6 +100,10 @@ function CookViewInner() {
                 notes: cook.notes,
                 photoUrl: cook.photoUrl,
                 rating: cook.rating,
+                spiciness: cook.spiciness,
+                sweetness: cook.sweetness,
+                saltiness: cook.saltiness,
+                richness: cook.richness,
               }}
               showCookedAt
               cookedAtImmutable
@@ -149,17 +157,36 @@ function CookViewInner() {
             />
           )}
 
-          {cook.rating != null ? (
-            <div className="flex items-center gap-3">
-              <span className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
-                Rating
-              </span>
-              <RatingStars value={cook.rating} size="sm" readOnly />
-              <span className="chef-stamp text-base">{cook.rating}/5</span>
+          <div className="space-y-2 pt-1">
+            <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
+              Ratings
             </div>
-          ) : (
-            <div className="text-xs text-zinc-500 italic">Not rated.</div>
-          )}
+            {RATING_AXES.every((a) =>
+              ((cook as unknown as Record<string, number | null>)[a.key === 'overall' ? 'rating' : a.key] ?? null) === null,
+            ) ? (
+              <div className="text-xs text-zinc-500 italic">Not rated.</div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {RATING_AXES.map((axis) => {
+                  const cookKey = axis.key === 'overall' ? 'rating' : axis.key;
+                  const v = (cook as unknown as Record<string, number | null>)[cookKey];
+                  return (
+                    <div
+                      key={axis.key}
+                      className="flex items-center justify-between bg-zinc-950/50 border border-zinc-800 rounded-lg px-3 py-2"
+                    >
+                      <span className="text-xs text-zinc-300 font-semibold">{axis.label}</span>
+                      {v != null ? (
+                        <IconRating value={v} icon={axis.icon} size="sm" readOnly />
+                      ) : (
+                        <span className="text-[11px] text-zinc-600 italic">—</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           {cook.notes ? (
             <div>

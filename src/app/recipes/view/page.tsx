@@ -18,10 +18,8 @@ import {
   instructionText,
   normalizeInstruction,
 } from '@/types';
-import { recipesApi } from '@/lib/api';
 import Loader from '@/components/Loader';
-import { IconRating, RATING_AXES, RatingAxisKey } from '@/components/IconRating';
-import { RateAxes } from '@/lib/api';
+import { IconRating, RATING_AXES } from '@/components/IconRating';
 
 export default function RecipeViewPage() {
   return (
@@ -37,16 +35,8 @@ function RecipeViewInner() {
   const recipeId = params.get('id');
   const { isAuthenticated, isLoading: authLoading } = useRequireAuth();
   const { user } = useAuth();
-  const { recipe, isLoading, error, refresh, edit, remove } = useRecipe(recipeId);
+  const { recipe, isLoading, error, edit, remove } = useRecipe(recipeId);
   const [editing, setEditing] = useState(false);
-  const [myRatings, setMyRatings] = useState<Record<RatingAxisKey, number>>({
-    overall: 0,
-    spiciness: 0,
-    sweetness: 0,
-    saltiness: 0,
-    richness: 0,
-  });
-  const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   if (authLoading || !isAuthenticated) {
     return <Loader fullscreen />;
@@ -73,18 +63,6 @@ function RecipeViewInner() {
   }
 
   const isAuthor = user?.sub === recipe.authorUserId;
-
-  const handleRate = async (axisKey: RatingAxisKey, n: number) => {
-    setMyRatings((prev) => ({ ...prev, [axisKey]: n }));
-    setRatingSubmitting(true);
-    const axisCfg = RATING_AXES.find((a) => a.key === axisKey)!;
-    try {
-      await recipesApi.rate(recipe.recipeId, { [axisCfg.bodyKey]: n } as RateAxes);
-      refresh();
-    } finally {
-      setRatingSubmitting(false);
-    }
-  };
 
   const handleDelete = async () => {
     if (typeof window !== 'undefined') {
@@ -259,37 +237,40 @@ function RecipeViewInner() {
           )}
 
           <div className="pt-2 border-t border-zinc-800 space-y-3">
-            {RATING_AXES.map((axis) => {
-              const avg = (recipe as unknown as Record<string, number | null>)[axis.avgKey];
-              const count = (recipe as unknown as Record<string, number>)[axis.countKey] ?? 0;
-              const my = myRatings[axis.key];
-              return (
-                <div key={axis.key} className="flex items-center justify-between gap-3">
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
-                      {axis.label}
+            <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
+              Ratings
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {RATING_AXES.map((axis) => {
+                const avg = (recipe as unknown as Record<string, number | null>)[axis.avgKey];
+                const count = (recipe as unknown as Record<string, number>)[axis.countKey] ?? 0;
+                return (
+                  <div
+                    key={axis.key}
+                    className="flex items-center justify-between bg-zinc-950/50 border border-zinc-800 rounded-lg px-3 py-2"
+                  >
+                    <div>
+                      <div className="text-xs text-zinc-300 font-semibold">
+                        {axis.label}
+                      </div>
+                      <div className="text-[10px] text-zinc-500">
+                        {count > 0 && avg != null
+                          ? `avg ${avg.toFixed(1)} · ${count}`
+                          : 'no ratings yet'}
+                      </div>
                     </div>
                     {count > 0 && avg != null ? (
-                      <p className="text-[11px] text-zinc-500 mt-0.5">
-                        avg {avg.toFixed(1)} · {count} {count === 1 ? 'rating' : 'ratings'}
-                      </p>
+                      <IconRating value={Math.round(avg)} icon={axis.icon} size="sm" readOnly />
                     ) : (
-                      <p className="text-[11px] text-zinc-500 mt-0.5">no ratings yet</p>
+                      <span className="text-[11px] text-zinc-600 italic">—</span>
                     )}
                   </div>
-                  <IconRating
-                    value={my}
-                    onChange={(n) => void handleRate(axis.key, n)}
-                    icon={axis.icon}
-                    size="md"
-                    label={`Rate ${axis.label.toLowerCase()}`}
-                  />
-                </div>
-              );
-            })}
-            {ratingSubmitting && (
-              <div className="text-[11px] text-zinc-500 italic">Saving…</div>
-            )}
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-zinc-500 italic">
+              Want to rate? Log a cook of this recipe — ratings live on the cook session.
+            </p>
           </div>
         </section>
 

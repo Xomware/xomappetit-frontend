@@ -230,6 +230,10 @@ export interface Cook {
   notes: string;
   photoUrl: string | null;
   rating: number | null;
+  spiciness: number | null;
+  sweetness: number | null;
+  saltiness: number | null;
+  richness: number | null;
   loggedByUserId: string;
   createdAt: string;
   updatedAt: string;

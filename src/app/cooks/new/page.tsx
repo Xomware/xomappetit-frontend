@@ -41,6 +41,10 @@ function NewCookInner() {
       notes: values.notes || undefined,
       photoUrl: values.photoUrl,
       rating: values.rating,
+      spiciness: values.spiciness,
+      sweetness: values.sweetness,
+      saltiness: values.saltiness,
+      richness: values.richness,
     });
     router.push(`/cooks/view?id=${encodeURIComponent(cook.cookId)}`);
   };

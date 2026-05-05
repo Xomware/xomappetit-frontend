@@ -200,12 +200,20 @@ export interface LogCookInput {
   notes?: string;
   photoUrl?: string | null;
   rating?: number | null;
+  spiciness?: number | null;
+  sweetness?: number | null;
+  saltiness?: number | null;
+  richness?: number | null;
 }
 
 export interface EditCookInput {
   notes?: string;
   photoUrl?: string | null;
   rating?: number | null;
+  spiciness?: number | null;
+  sweetness?: number | null;
+  saltiness?: number | null;
+  richness?: number | null;
 }
 
 export type CookListScope = 'mine' | 'recipe';

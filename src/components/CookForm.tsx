@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState } from 'react';
-import { RatingStars } from './RatingStars';
+import { IconRating, RATING_AXES, RatingAxisKey } from './IconRating';
 import PeoplePickerModal from './PeoplePickerModal';
 import { useUsersById } from '@/lib/use-users-by-id';
 import { useAuth } from '@/lib/auth-context';
@@ -18,6 +18,10 @@ export interface CookFormValues {
   notes: string;
   photoUrl: string | null;
   rating: number | null;
+  spiciness: number | null;
+  sweetness: number | null;
+  saltiness: number | null;
+  richness: number | null;
 }
 
 interface Props {
@@ -68,7 +72,15 @@ export function CookForm({
   const [diners, setDiners] = useState<string[]>(initial?.diners ?? []);
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [photoUrl, setPhotoUrl] = useState(initial?.photoUrl ?? '');
-  const [rating, setRating] = useState<number>(initial?.rating ?? 0);
+  const [ratings, setRatings] = useState<Record<RatingAxisKey, number>>({
+    overall: initial?.rating ?? 0,
+    spiciness: initial?.spiciness ?? 0,
+    sweetness: initial?.sweetness ?? 0,
+    saltiness: initial?.saltiness ?? 0,
+    richness: initial?.richness ?? 0,
+  });
+  const setRating = (axis: RatingAxisKey, n: number) =>
+    setRatings((prev) => ({ ...prev, [axis]: n }));
 
   const [stepId, setStepId] = useState<StepId>(participantsImmutable ? 'details' : 'who');
   const [submitting, setSubmitting] = useState(false);
@@ -99,16 +111,18 @@ export function CookForm({
     setSubmitting(true);
     setError(null);
     try {
-      // Diners can't also be chefs — backend filters this but we mirror it
-      // here so the UI never sends an obviously bad payload.
-      const cleanedDiners = diners.filter((d) => !chefs.includes(d));
+      const r = (n: number) => (n > 0 ? n : null);
       await onSubmit({
         cookedAt: new Date(cookedAt).toISOString(),
         chefs,
-        diners: cleanedDiners,
+        diners,
         notes: notes.trim(),
         photoUrl: photoUrl.trim() || null,
-        rating: rating > 0 ? rating : null,
+        rating: r(ratings.overall),
+        spiciness: r(ratings.spiciness),
+        sweetness: r(ratings.sweetness),
+        saltiness: r(ratings.saltiness),
+        richness: r(ratings.richness),
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -160,7 +174,7 @@ export function CookForm({
         )}
 
         {stepId === 'rating' && (
-          <RatingStep rating={rating} setRating={setRating} />
+          <RatingStep ratings={ratings} setRating={setRating} />
         )}
 
         {error && (
@@ -434,29 +448,53 @@ function DetailsStep({
 // ---------- Step 3: Rating ----------
 
 function RatingStep({
-  rating,
+  ratings,
   setRating,
 }: {
-  rating: number;
-  setRating: (n: number) => void;
+  ratings: Record<RatingAxisKey, number>;
+  setRating: (axis: RatingAxisKey, n: number) => void;
 }) {
   return (
-    <div className="space-y-3">
-      <span className={labelCls}>How was this cook?</span>
-      <div className="flex items-center gap-3">
-        <RatingStars value={rating} onChange={setRating} size="lg" label="Cook rating" />
-        {rating > 0 && (
-          <button
-            type="button"
-            onClick={() => setRating(0)}
-            className="text-xs text-zinc-500 hover:text-coral-300 transition"
-          >
-            clear
-          </button>
-        )}
-      </div>
-      <p className="text-[11px] text-zinc-500">
-        Optional — rate this specific cook session. Recipe ratings live on the recipe page.
+    <div className="space-y-4">
+      <p className="text-sm text-zinc-400">
+        Rate how this cook turned out. All optional — skip whatever doesn't apply.
+      </p>
+      {RATING_AXES.map((axis) => {
+        const v = ratings[axis.key];
+        return (
+          <div key={axis.key} className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
+                {axis.label}
+              </div>
+              <div className="text-[11px] text-zinc-500">
+                {v > 0 ? `${v}/5` : 'not rated'}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <IconRating
+                value={v}
+                onChange={(n) => setRating(axis.key, n)}
+                icon={axis.icon}
+                size="md"
+                label={`Rate ${axis.label.toLowerCase()}`}
+              />
+              {v > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setRating(axis.key, 0)}
+                  aria-label={`Clear ${axis.label.toLowerCase()} rating`}
+                  className="text-xs text-zinc-500 hover:text-coral-300 transition px-1"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
+      <p className="text-[11px] text-zinc-500 italic">
+        These ratings roll up into the recipe's overall numbers — you can only rate a recipe if you've cooked it.
       </p>
     </div>
   );
