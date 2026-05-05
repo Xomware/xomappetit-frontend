@@ -91,12 +91,15 @@ function CookViewInner() {
             <CookForm
               initial={{
                 cookedAt: cook.cookedAt,
+                chefs: cook.chefs,
+                diners: cook.diners,
                 notes: cook.notes,
                 photoUrl: cook.photoUrl,
                 rating: cook.rating,
               }}
               showCookedAt
               cookedAtImmutable
+              participantsImmutable
               submitLabel="Save changes"
               onSubmit={handleEditSubmit}
             />

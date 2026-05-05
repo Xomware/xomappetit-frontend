@@ -36,6 +36,8 @@ function NewCookInner() {
     const cook = await logCook({
       recipeId,
       cookedAt: values.cookedAt,
+      chefs: values.chefs,
+      diners: values.diners,
       notes: values.notes || undefined,
       photoUrl: values.photoUrl,
       rating: values.rating,
