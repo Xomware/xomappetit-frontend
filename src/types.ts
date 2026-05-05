@@ -30,6 +30,10 @@ export interface Recipe {
   macros: Macros;
   privacy: Privacy;
   cookCount: number;
+  /** Total likes across all users. Denormalized — updated by recipes-like. */
+  likeCount?: number;
+  /** Did the caller like this recipe? Only present on recipes-get / feed responses. */
+  likedByMe?: boolean;
   avgRating: number;
   ratingCount: number;
   createdAt: string;

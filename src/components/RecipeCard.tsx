@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { Recipe } from '@/types';
 import { PrivacyBadge } from './PrivacyBadge';
+import LikeButton from './LikeButton';
 
 interface Props {
   recipe: Recipe;
@@ -51,31 +52,31 @@ export function RecipeCard({ recipe }: Props) {
         </span>
       )}
 
-      <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60">
-        <div className="text-xs text-zinc-500 flex items-center gap-3">
-          <span>
+      <div className="flex items-center justify-between pt-1 border-t border-zinc-800/60 gap-2">
+        <div className="text-xs text-zinc-500 flex items-center gap-3 min-w-0">
+          <LikeButton
+            recipeId={recipe.recipeId}
+            initialCount={recipe.likeCount ?? 0}
+            initialLiked={recipe.likedByMe ?? false}
+            compact
+          />
+          <span className="truncate">
             <span className="text-zinc-300 font-semibold">{recipe.cookCount}</span>{' '}
             {recipe.cookCount === 1 ? 'cook' : 'cooks'}
           </span>
-          {recipe.ratingCount > 0 ? (
-            <span className="flex items-center gap-1">
+          {recipe.ratingCount > 0 && (
+            <span className="flex items-center gap-1 shrink-0">
               <span className="text-coral-300">★</span>
               <span className="text-zinc-300 font-semibold">
                 {recipe.avgRating.toFixed(1)}
               </span>
-              <span className="text-zinc-600">
-                ({recipe.ratingCount})
-              </span>
             </span>
-          ) : (
-            <span className="text-zinc-600">no ratings yet</span>
           )}
         </div>
         {recipe.authorHandle && (
           <button
             type="button"
             onClick={(e) => {
-              // Stop the parent <Link> from also navigating to the recipe detail.
               e.preventDefault();
               e.stopPropagation();
               window.location.assign(`/u/view?handle=${encodeURIComponent(recipe.authorHandle!)}`);

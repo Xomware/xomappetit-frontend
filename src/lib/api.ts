@@ -114,6 +114,8 @@ export const recipesApi = {
     apiPost<void>('/recipes/delete', { recipeId }),
   rate: (recipeId: string, rating: number): Promise<RateRecipeResult> =>
     apiPost<RateRecipeResult>('/recipes/rate', { recipeId, rating }),
+  like: (recipeId: string): Promise<{ recipeId: string; likeCount: number; likedByMe: boolean }> =>
+    apiPost('/recipes/like', { recipeId }),
 };
 
 export const commentsApi = {

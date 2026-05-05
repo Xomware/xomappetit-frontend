@@ -7,6 +7,7 @@ import { useRecipe } from '@/lib/hooks';
 import { RecipeForm, RecipeFormValues } from '@/components/RecipeForm';
 import { RecipeComments } from '@/components/RecipeComments';
 import { RatingStars } from '@/components/RatingStars';
+import LikeButton from '@/components/LikeButton';
 import { PrivacyBadge } from '@/components/PrivacyBadge';
 import { Ingredient, ingredientLabel } from '@/types';
 import { recipesApi } from '@/lib/api';
@@ -155,6 +156,22 @@ function RecipeViewInner() {
                   {recipe.proteinSource}
                 </span>
               </>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3 pt-2">
+            <LikeButton
+              recipeId={recipe.recipeId}
+              initialCount={recipe.likeCount ?? 0}
+              initialLiked={recipe.likedByMe ?? false}
+            />
+            <span className="text-xs text-zinc-500">
+              {recipe.cookCount} {recipe.cookCount === 1 ? 'cook' : 'cooks'}
+            </span>
+            {recipe.ratingCount > 0 && (
+              <span className="text-xs text-zinc-500">
+                ★ {recipe.avgRating.toFixed(1)} ({recipe.ratingCount})
+              </span>
             )}
           </div>
 
