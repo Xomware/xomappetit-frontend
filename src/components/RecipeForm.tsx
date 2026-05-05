@@ -7,7 +7,7 @@ import InstructionsEditor from './InstructionsEditor';
 const DIFFICULTIES: Difficulty[] = ['Easy', 'Medium', 'Hard'];
 const PRIVACIES: { value: Privacy; label: string; hint: string }[] = [
   { value: 'private', label: 'Private', hint: 'Only you can see it.' },
-  { value: 'friends', label: 'Friends', hint: 'Friends only (friends feature coming).' },
+  { value: 'friends', label: 'Friends', hint: 'Visible to your accepted friends.' },
   { value: 'public', label: 'Public', hint: 'Anyone can find and view it.' },
 ];
 

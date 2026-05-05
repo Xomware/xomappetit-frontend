@@ -66,3 +66,22 @@
 .animate-brand-pulse {
   animation: brand-pulse 1.6s ease-in-out infinite;
 }
+
+/* Prevent iOS Safari from auto-zooming on input focus when font-size < 16px.
+ * Tailwind's `text-sm` = 14px, which triggers the zoom; bump form controls up
+ * to 16px on small viewports while leaving the visual sizing untouched on
+ * larger screens. */
+@media (max-width: 640px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Containment guard against rogue overflow (long words, oversized embeds).
+ * Keeps the page from horizontally scrolling on phones. */
+html,
+body {
+  overflow-x: hidden;
+}
