@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Difficulty,
   Ingredient,
@@ -12,6 +12,7 @@ import {
   PROTEIN_LABELS,
   Recipe,
   Tag,
+  TAGS,
   TAG_GROUPS,
   TAG_LABELS,
   normalizeIngredient,
@@ -19,6 +20,8 @@ import {
 } from '@/types';
 import IngredientsEditor from './IngredientsEditor';
 import InstructionsEditor from './InstructionsEditor';
+import ChipPickerModal, { ChipOption } from './ChipPickerModal';
+import IngredientPickerModal from './IngredientPickerModal';
 import { rememberIngredient } from '@/lib/common-ingredients';
 
 const PRIVACIES: { value: Privacy; label: string; hint: string }[] = [
@@ -33,6 +36,16 @@ const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   3: 'Medium',
   4: 'Hard',
   5: 'Expert',
+};
+
+const STEP_ORDER = ['basics', 'ingredients', 'steps', 'taste', 'finish'] as const;
+type StepId = (typeof STEP_ORDER)[number];
+const STEP_LABELS: Record<StepId, string> = {
+  basics: 'Basics',
+  ingredients: 'Ingredients',
+  steps: 'Steps',
+  taste: 'Taste',
+  finish: 'Finish',
 };
 
 export interface RecipeFormValues {
@@ -64,6 +77,7 @@ const labelCls =
   'block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5';
 
 export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
+  // Form state
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [timeMinutes, setTimeMinutes] = useState(initial?.timeMinutes ?? 30);
@@ -90,24 +104,51 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
     initial?.macrosScope ?? 'per-recipe',
   );
   const [privacy, setPrivacy] = useState<Privacy>(initial?.privacy ?? 'private');
+
+  // Wizard state
+  const [stepId, setStepId] = useState<StepId>('basics');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const toggleProtein = (p: ProteinType) =>
-    setProteinTypes((prev) =>
-      prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p],
-    );
-  const toggleTag = (t: Tag) =>
-    setTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
+  // Modals
+  const [proteinModalOpen, setProteinModalOpen] = useState(false);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
+  const [ingredientModalOpen, setIngredientModalOpen] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name.trim()) return;
+  const stepIdx = STEP_ORDER.indexOf(stepId);
+  const isLastStep = stepIdx === STEP_ORDER.length - 1;
+
+  const stepValid = (id: StepId): boolean => {
+    if (id === 'basics') return name.trim().length > 0;
+    return true;
+  };
+
+  const goNext = () => {
+    if (!stepValid(stepId)) return;
+    if (isLastStep) {
+      void handleSubmit();
+      return;
+    }
+    setStepId(STEP_ORDER[stepIdx + 1]);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const goBack = () => {
+    if (stepIdx === 0) return;
+    setStepId(STEP_ORDER[stepIdx - 1]);
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim()) {
+      setStepId('basics');
+      setError('Name is required.');
+      return;
+    }
     setSubmitting(true);
     setError(null);
     try {
       const cleanedIngredients = ingredients.filter((i) => i.name.trim());
-      // Remember unique ingredient names for future autocomplete.
       cleanedIngredients.forEach((i) => rememberIngredient(i.name));
       await onSubmit({
         name: name.trim(),
@@ -131,11 +172,205 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
     }
   };
 
+  const tagOptions: ChipOption[] = useMemo(
+    () =>
+      TAG_GROUPS.flatMap((g) =>
+        g.tags.map((t) => ({ value: t, label: TAG_LABELS[t] ?? t, group: g.label })),
+      ),
+    [],
+  );
+
+  const proteinOptions: ChipOption[] = useMemo(
+    () => PROTEIN_TYPES.map((p) => ({ value: p, label: PROTEIN_LABELS[p] ?? p })),
+    [],
+  );
+
+  const addIngredientByName = (rawName: string) => {
+    const name = rawName.trim();
+    if (!name) return;
+    setIngredients((prev) => {
+      const exists = prev.some((i) => i.name.trim().toLowerCase() === name.toLowerCase());
+      if (exists) return prev;
+      return [...prev, { name, amount: null, unit: null }];
+    });
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <div className="space-y-6">
+      <ProgressBar current={stepIdx} total={STEP_ORDER.length} label={STEP_LABELS[stepId]} />
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          goNext();
+        }}
+        className="space-y-5"
+      >
+        {stepId === 'basics' && (
+          <BasicsStep
+            name={name}
+            setName={setName}
+            description={description}
+            setDescription={setDescription}
+            timeMinutes={timeMinutes}
+            setTimeMinutes={setTimeMinutes}
+            servings={servings}
+            setServings={setServings}
+            difficulty={difficulty}
+            setDifficulty={setDifficulty}
+          />
+        )}
+
+        {stepId === 'ingredients' && (
+          <IngredientsStep
+            ingredients={ingredients}
+            setIngredients={setIngredients}
+            openPicker={() => setIngredientModalOpen(true)}
+          />
+        )}
+
+        {stepId === 'steps' && (
+          <StepsStep
+            instructions={instructions}
+            setInstructions={setInstructions}
+            ingredients={ingredients}
+          />
+        )}
+
+        {stepId === 'taste' && (
+          <TasteStep
+            proteinTypes={proteinTypes}
+            tags={tags}
+            proteinSource={proteinSource}
+            setProteinSource={setProteinSource}
+            removeProtein={(p) => setProteinTypes(proteinTypes.filter((x) => x !== p))}
+            removeTag={(t) => setTags(tags.filter((x) => x !== t))}
+            openProteinPicker={() => setProteinModalOpen(true)}
+            openTagPicker={() => setTagModalOpen(true)}
+          />
+        )}
+
+        {stepId === 'finish' && (
+          <FinishStep
+            calories={calories}
+            setCalories={setCalories}
+            protein={protein}
+            setProtein={setProtein}
+            carbs={carbs}
+            setCarbs={setCarbs}
+            fat={fat}
+            setFat={setFat}
+            macrosScope={macrosScope}
+            setMacrosScope={setMacrosScope}
+            privacy={privacy}
+            setPrivacy={setPrivacy}
+          />
+        )}
+
+        {error && (
+          <div
+            role="alert"
+            className="text-xs text-coral-300 bg-coral-900/30 border border-coral-800 rounded-md px-3 py-2"
+          >
+            {error}
+          </div>
+        )}
+
+        <div className="sticky bottom-0 -mx-6 px-6 py-3 bg-zinc-950/95 backdrop-blur border-t border-zinc-800 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={goBack}
+            disabled={stepIdx === 0 || submitting}
+            className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed px-4 py-2.5 rounded-lg text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-coral-400/40"
+          >
+            Back
+          </button>
+          <button
+            type="submit"
+            disabled={!stepValid(stepId) || submitting}
+            className="flex-1 bg-gradient-to-r from-coral-500 to-coral-400 hover:from-coral-400 hover:to-coral-300 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold uppercase tracking-wider py-2.5 px-4 rounded-lg transition shadow-lg shadow-coral-500/20 focus:outline-none focus:ring-2 focus:ring-coral-400/50"
+          >
+            {submitting ? 'Saving…' : isLastStep ? submitLabel : 'Continue'}
+          </button>
+        </div>
+      </form>
+
+      <IngredientPickerModal
+        open={ingredientModalOpen}
+        current={ingredients}
+        onClose={() => setIngredientModalOpen(false)}
+        onAdd={addIngredientByName}
+      />
+      <ChipPickerModal
+        open={proteinModalOpen}
+        title="Pick proteins"
+        options={proteinOptions}
+        selected={proteinTypes}
+        onClose={() => setProteinModalOpen(false)}
+        onChange={(next) => setProteinTypes(next as ProteinType[])}
+        noMatchMessage="No matching protein."
+      />
+      <ChipPickerModal
+        open={tagModalOpen}
+        title="Pick tags"
+        options={tagOptions}
+        selected={tags}
+        onClose={() => setTagModalOpen(false)}
+        onChange={(next) => setTags(next.filter((v) => (TAGS as readonly string[]).includes(v)) as Tag[])}
+        noMatchMessage="No matching tag."
+      />
+    </div>
+  );
+}
+
+// ---------- Wizard chrome ----------
+
+function ProgressBar({ current, total, label }: { current: number; total: number; label: string }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2">
+        {Array.from({ length: total }, (_, i) => (
+          <span
+            key={i}
+            className={`h-1.5 flex-1 rounded-full transition ${
+              i <= current ? 'bg-coral-400' : 'bg-zinc-800'
+            }`}
+          />
+        ))}
+      </div>
+      <div className="mt-2 flex items-baseline justify-between">
+        <h3 className="font-display text-base font-black uppercase tracking-wide">
+          {label}
+        </h3>
+        <span className="text-[11px] text-zinc-500">
+          Step {current + 1} of {total}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+// ---------- Step 1: Basics ----------
+
+function BasicsStep({
+  name, setName,
+  description, setDescription,
+  timeMinutes, setTimeMinutes,
+  servings, setServings,
+  difficulty, setDifficulty,
+}: {
+  name: string; setName: (v: string) => void;
+  description: string; setDescription: (v: string) => void;
+  timeMinutes: number; setTimeMinutes: (v: number) => void;
+  servings: number; setServings: (v: number) => void;
+  difficulty: Difficulty; setDifficulty: (v: Difficulty) => void;
+}) {
+  return (
+    <div className="space-y-5">
       <div>
         <label className={labelCls}>Name *</label>
         <input
+          autoFocus
           className={inputCls}
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -143,18 +378,16 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
           required
         />
       </div>
-
       <div>
         <label className={labelCls}>Description</label>
         <textarea
-          className={inputCls + ' min-h-[60px] resize-y'}
+          className={inputCls + ' min-h-[80px] resize-y'}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="What is it? Why do you love it?"
         />
       </div>
-
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className={labelCls}>Time (min)</label>
           <input
@@ -178,87 +411,213 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
             max={50}
           />
         </div>
-        <div className="col-span-2 sm:col-span-1">
-          <label className={labelCls}>Difficulty: {DIFFICULTY_LABELS[difficulty]}</label>
-          <DifficultyPicker value={difficulty} onChange={setDifficulty} />
-        </div>
       </div>
-
       <div>
-        <label className={labelCls}>Protein</label>
-        <div className="flex flex-wrap gap-1.5">
-          {PROTEIN_TYPES.map((p) => {
-            const on = proteinTypes.includes(p);
-            return (
+        <label className={labelCls}>
+          Difficulty: {DIFFICULTY_LABELS[difficulty]}
+        </label>
+        <DifficultyPicker value={difficulty} onChange={setDifficulty} />
+      </div>
+    </div>
+  );
+}
+
+function DifficultyPicker({
+  value,
+  onChange,
+}: {
+  value: Difficulty;
+  onChange: (v: Difficulty) => void;
+}) {
+  return (
+    <div className="flex gap-1" role="radiogroup" aria-label="Difficulty">
+      {([1, 2, 3, 4, 5] as Difficulty[]).map((n) => {
+        const on = n <= value;
+        return (
+          <button
+            key={n}
+            type="button"
+            role="radio"
+            aria-checked={value === n}
+            onClick={() => onChange(n)}
+            className={`flex-1 min-w-0 h-10 rounded-md border transition focus:outline-none focus:ring-2 focus:ring-coral-400/50 ${
+              on
+                ? 'bg-coral-500/20 border-coral-500/50 text-coral-200'
+                : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
+            }`}
+          >
+            <span className="text-sm font-bold">{n}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------- Step 2: Ingredients ----------
+
+function IngredientsStep({
+  ingredients,
+  setIngredients,
+  openPicker,
+}: {
+  ingredients: Ingredient[];
+  setIngredients: (v: Ingredient[]) => void;
+  openPicker: () => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-zinc-400">
+        What goes in? Add ingredients with their quantities.
+      </p>
+      <button
+        type="button"
+        onClick={openPicker}
+        className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 rounded-lg py-2.5 text-sm font-semibold text-zinc-200 transition focus:outline-none focus:ring-2 focus:ring-coral-400/40"
+      >
+        <span>🔍 Search ingredients</span>
+      </button>
+      <IngredientsEditor ingredients={ingredients} onChange={setIngredients} />
+    </div>
+  );
+}
+
+// ---------- Step 3: Steps ----------
+
+function StepsStep({
+  instructions,
+  setInstructions,
+  ingredients,
+}: {
+  instructions: Instruction[];
+  setInstructions: (v: Instruction[]) => void;
+  ingredients: Ingredient[];
+}) {
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-zinc-400">
+        Write each step and tag which ingredients it uses.
+      </p>
+      <InstructionsEditor
+        steps={instructions}
+        ingredients={ingredients}
+        onChange={setInstructions}
+      />
+    </div>
+  );
+}
+
+// ---------- Step 4: Taste (proteins + tags) ----------
+
+function TasteStep({
+  proteinTypes,
+  tags,
+  proteinSource,
+  setProteinSource,
+  removeProtein,
+  removeTag,
+  openProteinPicker,
+  openTagPicker,
+}: {
+  proteinTypes: ProteinType[];
+  tags: Tag[];
+  proteinSource: string;
+  setProteinSource: (v: string) => void;
+  removeProtein: (p: ProteinType) => void;
+  removeTag: (t: Tag) => void;
+  openProteinPicker: () => void;
+  openTagPicker: () => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <label className={labelCls + ' mb-0'}>Protein</label>
+          <button
+            type="button"
+            onClick={openProteinPicker}
+            className="text-xs font-semibold uppercase tracking-wider text-coral-400 hover:text-coral-300"
+          >
+            + Pick
+          </button>
+        </div>
+        {proteinTypes.length === 0 ? (
+          <p className="text-xs text-zinc-500 italic">No proteins picked yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {proteinTypes.map((p) => (
               <button
                 key={p}
                 type="button"
-                onClick={() => toggleProtein(p)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition ${
-                  on
-                    ? 'bg-coral-500/20 border-coral-500/50 text-coral-200'
-                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                }`}
+                onClick={() => removeProtein(p)}
+                className="text-xs px-2.5 py-1 rounded-full border bg-coral-500/20 border-coral-500/50 text-coral-200 hover:bg-coral-500/30 transition"
+                aria-label={`Remove ${PROTEIN_LABELS[p] ?? p}`}
               >
-                {PROTEIN_LABELS[p]}
+                {PROTEIN_LABELS[p] ?? p} <span className="ml-1 text-coral-300/70">×</span>
               </button>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        )}
         <input
-          className={inputCls + ' mt-2'}
+          className={inputCls}
           value={proteinSource}
           onChange={(e) => setProteinSource(e.target.value)}
-          placeholder="Optional free-text label (e.g. Bone-in chicken thigh)"
+          placeholder="Optional refinement (e.g. bone-in chicken thigh)"
         />
       </div>
 
-      <div>
-        <label className={labelCls}>Tags</label>
-        <div className="space-y-2">
-          {TAG_GROUPS.map((group) => (
-            <div key={group.label}>
-              <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1">
-                {group.label}
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {group.tags.map((t) => {
-                  const on = tags.includes(t);
-                  return (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => toggleTag(t)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition ${
-                        on
-                          ? 'bg-coral-500/20 border-coral-500/50 text-coral-200'
-                          : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700 hover:text-zinc-200'
-                      }`}
-                    >
-                      {TAG_LABELS[t]}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <label className={labelCls + ' mb-0'}>Tags</label>
+          <button
+            type="button"
+            onClick={openTagPicker}
+            className="text-xs font-semibold uppercase tracking-wider text-coral-400 hover:text-coral-300"
+          >
+            + Pick
+          </button>
         </div>
+        {tags.length === 0 ? (
+          <p className="text-xs text-zinc-500 italic">No tags yet.</p>
+        ) : (
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => removeTag(t)}
+                className="text-xs px-2.5 py-1 rounded-full border bg-coral-500/20 border-coral-500/50 text-coral-200 hover:bg-coral-500/30 transition"
+                aria-label={`Remove ${TAG_LABELS[t] ?? t}`}
+              >
+                {TAG_LABELS[t] ?? t} <span className="ml-1 text-coral-300/70">×</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
 
-      <div>
-        <label className={labelCls}>Ingredients</label>
-        <IngredientsEditor ingredients={ingredients} onChange={setIngredients} />
-      </div>
+// ---------- Step 5: Finish (macros + privacy) ----------
 
-      <div>
-        <label className={labelCls}>Instructions</label>
-        <InstructionsEditor
-          steps={instructions}
-          ingredients={ingredients}
-          onChange={setInstructions}
-        />
-      </div>
-
+function FinishStep({
+  calories, setCalories,
+  protein, setProtein,
+  carbs, setCarbs,
+  fat, setFat,
+  macrosScope, setMacrosScope,
+  privacy, setPrivacy,
+}: {
+  calories: number; setCalories: (v: number) => void;
+  protein: number; setProtein: (v: number) => void;
+  carbs: number; setCarbs: (v: number) => void;
+  fat: number; setFat: (v: number) => void;
+  macrosScope: MacrosScope; setMacrosScope: (v: MacrosScope) => void;
+  privacy: Privacy; setPrivacy: (v: Privacy) => void;
+}) {
+  return (
+    <div className="space-y-6">
       <div>
         <div className="flex items-end justify-between gap-3 mb-2">
           <label className={labelCls + ' mb-0'}>Macros</label>
@@ -333,55 +692,6 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
           ))}
         </div>
       </fieldset>
-
-      {error && (
-        <div
-          role="alert"
-          className="text-xs text-coral-300 bg-coral-900/30 border border-coral-800 rounded-md px-3 py-2"
-        >
-          {error}
-        </div>
-      )}
-
-      <button
-        type="submit"
-        disabled={submitting || !name.trim()}
-        className="w-full bg-gradient-to-r from-coral-500 to-coral-400 hover:from-coral-400 hover:to-coral-300 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold uppercase tracking-wider py-2.5 px-4 rounded-lg transition shadow-lg shadow-coral-500/20 focus:outline-none focus:ring-2 focus:ring-coral-400/50"
-      >
-        {submitting ? 'Saving…' : submitLabel}
-      </button>
-    </form>
-  );
-}
-
-function DifficultyPicker({
-  value,
-  onChange,
-}: {
-  value: Difficulty;
-  onChange: (v: Difficulty) => void;
-}) {
-  return (
-    <div className="flex gap-1" role="radiogroup" aria-label="Difficulty">
-      {([1, 2, 3, 4, 5] as Difficulty[]).map((n) => {
-        const on = n <= value;
-        return (
-          <button
-            key={n}
-            type="button"
-            role="radio"
-            aria-checked={value === n}
-            onClick={() => onChange(n)}
-            className={`flex-1 min-w-0 h-9 rounded-md border transition focus:outline-none focus:ring-2 focus:ring-coral-400/50 ${
-              on
-                ? 'bg-coral-500/20 border-coral-500/50 text-coral-200'
-                : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'
-            }`}
-          >
-            <span className="text-sm font-bold">{n}</span>
-          </button>
-        );
-      })}
     </div>
   );
 }
