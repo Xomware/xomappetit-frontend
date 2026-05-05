@@ -50,7 +50,7 @@ export function useRecipes() {
   };
 }
 
-/** Friends feed — recipes from caller + accepted friends, newest first. */
+/** Friends feed — mixed recipes + cooks from caller + accepted friends. */
 export function useFeed() {
   const { isAuthenticated } = useAuth();
   const { data, error, isLoading, mutate: mutateFeed } = useSWR(

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useRequireAuth } from '@/lib/auth-context';
 import { useFeed } from '@/lib/hooks';
 import { RecipeCard } from '@/components/RecipeCard';
+import { CookActivityCard } from '@/components/CookActivityCard';
 import { MASCOTS, mascotFor } from '@/components/Mascot';
 import Loader from '@/components/Loader';
 
@@ -52,9 +53,20 @@ export default function Feed() {
         <EmptyFeed friendCount={friendCount} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((r) => (
-            <RecipeCard key={r.recipeId} recipe={r} />
-          ))}
+          {items.map((item) => {
+            if (item.type === 'cook') {
+              return (
+                <CookActivityCard
+                  key={`cook-${item.cook.cookId}`}
+                  cook={item.cook}
+                  recipe={item.recipe}
+                />
+              );
+            }
+            return (
+              <RecipeCard key={`recipe-${item.recipe.recipeId}`} recipe={item.recipe} />
+            );
+          })}
         </div>
       )}
     </main>

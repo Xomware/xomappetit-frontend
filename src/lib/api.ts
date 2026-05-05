@@ -79,8 +79,12 @@ export interface FriendsListResponse {
   outgoingPending: { userId: string; requestedAt: string }[];
 }
 
+export type FeedItem =
+  | { type: 'recipe'; recipe: Recipe }
+  | { type: 'cook'; cook: Cook; recipe: Recipe };
+
 export interface FriendsFeedResponse {
-  items: Recipe[];
+  items: FeedItem[];
   friendCount: number;
 }
 
