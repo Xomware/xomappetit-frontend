@@ -4,6 +4,7 @@ import {
   EditCookInput,
   EditRecipeInput,
   LogCookInput,
+  blocksApi,
   commentsApi,
   cookCommentsApi,
   cooksApi,
@@ -16,6 +17,7 @@ import { useAuth } from './auth-context';
 const FRIENDS_KEY = 'friends';
 const FEED_KEY = 'friends:feed';
 const NOTIFICATIONS_KEY = 'notifications';
+const BLOCKS_KEY = 'blocks';
 
 const RECIPES_KEY = 'recipes';
 const recipeKey = (id: string) => ['recipe', id] as const;
@@ -67,6 +69,32 @@ export function useFeed() {
     isLoading: isAuthenticated ? isLoading : false,
     error,
     refresh: () => mutateFeed(),
+  };
+}
+
+/** Blocked users list + mutators. */
+export function useBlocks() {
+  const { isAuthenticated } = useAuth();
+  const { data, error, isLoading, mutate: mutateBlocks } = useSWR(
+    isAuthenticated ? BLOCKS_KEY : null,
+    () => blocksApi.list(),
+  );
+  void mutateBlocks;
+  return {
+    blocked: data?.blocked ?? [],
+    isLoading: isAuthenticated ? isLoading : false,
+    error,
+    block: async (blockedUserId: string) => {
+      await blocksApi.add(blockedUserId);
+      mutate(BLOCKS_KEY);
+      mutate(FRIENDS_KEY); // server side wipes friendship; refetch
+      mutate(FEED_KEY);
+    },
+    unblock: async (blockedUserId: string) => {
+      await blocksApi.remove(blockedUserId);
+      mutate(BLOCKS_KEY);
+      mutate(FEED_KEY);
+    },
   };
 }
 

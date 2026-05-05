@@ -210,3 +210,23 @@ export const notificationsApi = {
   markAllRead: (): Promise<{ updated: number }> =>
     apiPost('/notifications/mark-read', { all: true }),
 };
+
+export interface BlockedUser {
+  userId: string;
+  blockedAt: string;
+}
+
+export const blocksApi = {
+  list: (): Promise<{ blocked: BlockedUser[] }> => apiPost('/blocks/list'),
+  add: (blockedUserId: string): Promise<{ status: 'blocked' }> =>
+    apiPost('/blocks/add', { blockedUserId }),
+  remove: (blockedUserId: string): Promise<{ status: 'unblocked' }> =>
+    apiPost('/blocks/remove', { blockedUserId }),
+};
+
+export type ReportRefType = 'user' | 'recipe' | 'cook' | 'comment';
+
+export const reportsApi = {
+  add: (refType: ReportRefType, refId: string, reason?: string): Promise<{ status: 'received' }> =>
+    apiPost('/reports/add', { refType, refId, reason: reason || '' }),
+};

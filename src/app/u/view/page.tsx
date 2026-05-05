@@ -7,6 +7,7 @@ import { useUserRecipes, useFriends } from '@/lib/hooks';
 import { usersApi, PublicUserProfile } from '@/lib/users';
 import { RecipeCard } from '@/components/RecipeCard';
 import Loader from '@/components/Loader';
+import UserActionsMenu from '@/components/UserActionsMenu';
 
 export default function UserPage() {
   return (
@@ -87,7 +88,15 @@ function UserPageInner() {
             <p className="text-sm text-zinc-400">@{profile.preferredUsername}</p>
           )}
         </div>
-        {!isSelf && <FriendButton targetUserId={profile.userId} />}
+        {!isSelf && (
+          <>
+            <FriendButton targetUserId={profile.userId} />
+            <UserActionsMenu
+              targetUserId={profile.userId}
+              targetHandle={profile.preferredUsername}
+            />
+          </>
+        )}
       </header>
 
       {isPrivate && !isSelf ? (
