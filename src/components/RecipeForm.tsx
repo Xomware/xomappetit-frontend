@@ -8,8 +8,6 @@ import {
   MacrosScope,
   Privacy,
   ProteinType,
-  PROTEIN_TYPES,
-  PROTEIN_LABELS,
   Recipe,
   Tag,
   TAGS,
@@ -23,6 +21,7 @@ import InstructionsEditor from './InstructionsEditor';
 import ChipPickerModal, { ChipOption } from './ChipPickerModal';
 import IngredientPickerModal from './IngredientPickerModal';
 import { rememberIngredient } from '@/lib/common-ingredients';
+import { recipesApi, ComputeMacrosResult } from '@/lib/api';
 
 const PRIVACIES: { value: Privacy; label: string; hint: string }[] = [
   { value: 'private', label: 'Private', hint: 'Only you can see it.' },
@@ -38,13 +37,13 @@ const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   5: 'Expert',
 };
 
-const STEP_ORDER = ['basics', 'ingredients', 'steps', 'taste', 'finish'] as const;
+const STEP_ORDER = ['basics', 'ingredients', 'steps', 'tags', 'finish'] as const;
 type StepId = (typeof STEP_ORDER)[number];
 const STEP_LABELS: Record<StepId, string> = {
   basics: 'Basics',
   ingredients: 'Ingredients',
   steps: 'Steps',
-  taste: 'Taste',
+  tags: 'Tags',
   finish: 'Finish',
 };
 
@@ -85,10 +84,11 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
   const [difficulty, setDifficulty] = useState<Difficulty>(
     (initial?.difficulty as Difficulty) ?? 3,
   );
-  const [proteinSource, setProteinSource] = useState(initial?.proteinSource ?? '');
-  const [proteinTypes, setProteinTypes] = useState<ProteinType[]>(
-    initial?.proteinTypes ?? [],
-  );
+  // proteinTypes is auto-derived server-side from the ingredient list, so the
+  // wizard doesn't ask. We round-trip whatever was on the recipe (so edits
+  // don't accidentally clear the chips when ingredients haven't changed).
+  const proteinTypes: ProteinType[] = initial?.proteinTypes ?? [];
+  const proteinSource: string = initial?.proteinSource ?? '';
   const [tags, setTags] = useState<Tag[]>(initial?.tags ?? []);
   const [ingredients, setIngredients] = useState<Ingredient[]>(
     (initial?.ingredients ?? []).map(normalizeIngredient),
@@ -111,9 +111,12 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Modals
-  const [proteinModalOpen, setProteinModalOpen] = useState(false);
   const [tagModalOpen, setTagModalOpen] = useState(false);
   const [ingredientModalOpen, setIngredientModalOpen] = useState(false);
+  // Auto-macros state
+  const [macrosCalc, setMacrosCalc] = useState<ComputeMacrosResult | null>(null);
+  const [macrosBusy, setMacrosBusy] = useState(false);
+  const [macrosError, setMacrosError] = useState<string | null>(null);
 
   const stepIdx = STEP_ORDER.indexOf(stepId);
   const isLastStep = stepIdx === STEP_ORDER.length - 1;
@@ -180,10 +183,25 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
     [],
   );
 
-  const proteinOptions: ChipOption[] = useMemo(
-    () => PROTEIN_TYPES.map((p) => ({ value: p, label: PROTEIN_LABELS[p] ?? p })),
-    [],
-  );
+  const runComputeMacros = async () => {
+    setMacrosBusy(true);
+    setMacrosError(null);
+    try {
+      const result = await recipesApi.computeMacros(
+        ingredients.filter((i) => i.name.trim()),
+        { servings, macrosScope },
+      );
+      setMacrosCalc(result);
+      setCalories(result.macros.calories);
+      setProtein(result.macros.protein);
+      setCarbs(result.macros.carbs);
+      setFat(result.macros.fat);
+    } catch (err) {
+      setMacrosError(err instanceof Error ? err.message : 'Could not compute');
+    } finally {
+      setMacrosBusy(false);
+    }
+  };
 
   const addIngredientByName = (rawName: string) => {
     const name = rawName.trim();
@@ -237,15 +255,10 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
           />
         )}
 
-        {stepId === 'taste' && (
-          <TasteStep
-            proteinTypes={proteinTypes}
+        {stepId === 'tags' && (
+          <TagsStep
             tags={tags}
-            proteinSource={proteinSource}
-            setProteinSource={setProteinSource}
-            removeProtein={(p) => setProteinTypes(proteinTypes.filter((x) => x !== p))}
             removeTag={(t) => setTags(tags.filter((x) => x !== t))}
-            openProteinPicker={() => setProteinModalOpen(true)}
             openTagPicker={() => setTagModalOpen(true)}
           />
         )}
@@ -264,6 +277,11 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
             setMacrosScope={setMacrosScope}
             privacy={privacy}
             setPrivacy={setPrivacy}
+            macrosCalc={macrosCalc}
+            macrosBusy={macrosBusy}
+            macrosError={macrosError}
+            onAutoCalc={() => void runComputeMacros()}
+            canAutoCalc={ingredients.some((i) => i.name.trim())}
           />
         )}
 
@@ -300,15 +318,6 @@ export function RecipeForm({ initial, submitLabel, onSubmit }: Props) {
         current={ingredients}
         onClose={() => setIngredientModalOpen(false)}
         onAdd={addIngredientByName}
-      />
-      <ChipPickerModal
-        open={proteinModalOpen}
-        title="Pick proteins"
-        options={proteinOptions}
-        selected={proteinTypes}
-        onClose={() => setProteinModalOpen(false)}
-        onChange={(next) => setProteinTypes(next as ProteinType[])}
-        noMatchMessage="No matching protein."
       />
       <ChipPickerModal
         open={tagModalOpen}
@@ -507,65 +516,22 @@ function StepsStep({
   );
 }
 
-// ---------- Step 4: Taste (proteins + tags) ----------
+// ---------- Step 4: Tags ----------
 
-function TasteStep({
-  proteinTypes,
+function TagsStep({
   tags,
-  proteinSource,
-  setProteinSource,
-  removeProtein,
   removeTag,
-  openProteinPicker,
   openTagPicker,
 }: {
-  proteinTypes: ProteinType[];
   tags: Tag[];
-  proteinSource: string;
-  setProteinSource: (v: string) => void;
-  removeProtein: (p: ProteinType) => void;
   removeTag: (t: Tag) => void;
-  openProteinPicker: () => void;
   openTagPicker: () => void;
 }) {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <label className={labelCls + ' mb-0'}>Protein</label>
-          <button
-            type="button"
-            onClick={openProteinPicker}
-            className="text-xs font-semibold uppercase tracking-wider text-coral-400 hover:text-coral-300"
-          >
-            + Pick
-          </button>
-        </div>
-        {proteinTypes.length === 0 ? (
-          <p className="text-xs text-zinc-500 italic">No proteins picked yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {proteinTypes.map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => removeProtein(p)}
-                className="text-xs px-2.5 py-1 rounded-full border bg-coral-500/20 border-coral-500/50 text-coral-200 hover:bg-coral-500/30 transition"
-                aria-label={`Remove ${PROTEIN_LABELS[p] ?? p}`}
-              >
-                {PROTEIN_LABELS[p] ?? p} <span className="ml-1 text-coral-300/70">×</span>
-              </button>
-            ))}
-          </div>
-        )}
-        <input
-          className={inputCls}
-          value={proteinSource}
-          onChange={(e) => setProteinSource(e.target.value)}
-          placeholder="Optional refinement (e.g. bone-in chicken thigh)"
-        />
-      </div>
-
+    <div className="space-y-4">
+      <p className="text-sm text-zinc-400">
+        Tag the recipe so people can filter by diet, vibe, and meal type.
+      </p>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <label className={labelCls + ' mb-0'}>Tags</label>
@@ -578,7 +544,7 @@ function TasteStep({
           </button>
         </div>
         {tags.length === 0 ? (
-          <p className="text-xs text-zinc-500 italic">No tags yet.</p>
+          <p className="text-xs text-zinc-500 italic">No tags yet — tap "Pick" to choose.</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {tags.map((t) => (
@@ -595,6 +561,9 @@ function TasteStep({
           </div>
         )}
       </div>
+      <p className="text-[11px] text-zinc-500 italic">
+        Proteins are detected automatically from your ingredient list — no need to pick.
+      </p>
     </div>
   );
 }
@@ -608,6 +577,8 @@ function FinishStep({
   fat, setFat,
   macrosScope, setMacrosScope,
   privacy, setPrivacy,
+  macrosCalc, macrosBusy, macrosError,
+  onAutoCalc, canAutoCalc,
 }: {
   calories: number; setCalories: (v: number) => void;
   protein: number; setProtein: (v: number) => void;
@@ -615,6 +586,11 @@ function FinishStep({
   fat: number; setFat: (v: number) => void;
   macrosScope: MacrosScope; setMacrosScope: (v: MacrosScope) => void;
   privacy: Privacy; setPrivacy: (v: Privacy) => void;
+  macrosCalc: ComputeMacrosResult | null;
+  macrosBusy: boolean;
+  macrosError: string | null;
+  onAutoCalc: () => void;
+  canAutoCalc: boolean;
 }) {
   return (
     <div className="space-y-6">
@@ -638,6 +614,35 @@ function FinishStep({
             ))}
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={onAutoCalc}
+          disabled={!canAutoCalc || macrosBusy}
+          className="w-full flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-coral-500/50 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg py-2 text-sm font-semibold text-zinc-200 transition mb-2 focus:outline-none focus:ring-2 focus:ring-coral-400/40"
+        >
+          <span>{macrosBusy ? 'Calculating…' : '✨ Calculate from ingredients'}</span>
+        </button>
+
+        {macrosCalc && (
+          <div className="text-[11px] text-zinc-500 mb-2 flex items-center gap-2 flex-wrap">
+            <span>
+              Matched <span className="text-coral-300 font-semibold">{macrosCalc.coverage.matched}</span>{' '}
+              of <span className="font-semibold">{macrosCalc.coverage.total}</span>
+            </span>
+            {macrosCalc.coverage.unmatched.length > 0 && (
+              <span title={macrosCalc.coverage.unmatched.join(', ')} className="italic">
+                · skipped {macrosCalc.coverage.unmatched.length}
+              </span>
+            )}
+            <span>· tweak any value below.</span>
+          </div>
+        )}
+
+        {macrosError && (
+          <div role="alert" className="text-xs text-coral-300 mb-2">{macrosError}</div>
+        )}
+
         <div className="grid grid-cols-4 gap-2">
           {(
             [

@@ -105,6 +105,17 @@ export interface ImportRecipeResult {
   source: 'json-ld' | 'claude';
 }
 
+export interface ComputeMacrosResult {
+  macros: Recipe['macros'];
+  macrosScope: Recipe['macrosScope'];
+  servings: number;
+  coverage: {
+    matched: number;
+    total: number;
+    unmatched: string[];
+  };
+}
+
 export interface RecipesPublicPage {
   items: Recipe[];
   nextCursor: string | null;
@@ -161,6 +172,15 @@ export const recipesApi = {
     apiPost<ImportRecipeResult>('/recipes/import-url', { url }),
   importText: (text: string): Promise<ImportRecipeResult> =>
     apiPost<ImportRecipeResult>('/recipes/import-text', { text }),
+  computeMacros: (
+    ingredients: Recipe['ingredients'],
+    opts?: { servings?: number; macrosScope?: Recipe['macrosScope'] },
+  ): Promise<ComputeMacrosResult> =>
+    apiPost<ComputeMacrosResult>('/recipes/compute-macros', {
+      ingredients,
+      servings: opts?.servings,
+      macrosScope: opts?.macrosScope,
+    }),
 };
 
 export const commentsApi = {
