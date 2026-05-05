@@ -50,11 +50,15 @@ export interface CreateRecipeInput {
   name: string;
   description?: string;
   timeMinutes?: number;
+  servings?: number;
   difficulty?: Recipe['difficulty'];
   proteinSource?: string;
+  proteinTypes?: Recipe['proteinTypes'];
+  tags?: Recipe['tags'];
   ingredients?: Recipe['ingredients'];
-  instructions?: string[];
+  instructions?: Recipe['instructions'];
   macros?: Recipe['macros'];
+  macrosScope?: Recipe['macrosScope'];
   privacy?: Recipe['privacy'];
 }
 
@@ -63,9 +67,18 @@ export type EditRecipeInput = Partial<CreateRecipeInput>;
 export interface RateRecipeResult {
   recipeId: string;
   userId: string;
-  rating: number;
-  avgRating: number;
+  rating: number | null;
+  spiciness: number | null;
+  avgRating: number | null;
   ratingCount: number;
+  spicinessAvg: number | null;
+  spicinessCount: number;
+}
+
+export interface ListPublicFilters {
+  tags?: Recipe['tags'];
+  proteinTypes?: Recipe['proteinTypes'];
+  maxTimeMinutes?: number;
 }
 
 export interface RecipesPublicPage {
@@ -106,7 +119,7 @@ export const recipesApi = {
   list: (authorUserId?: string): Promise<Recipe[]> =>
     apiPost<Recipe[]>('/recipes/list', authorUserId ? { authorUserId } : undefined),
   /** Global feed of `privacy = 'public'` recipes, newest first. */
-  listPublic: (opts?: { limit?: number; cursor?: string }): Promise<RecipesPublicPage> =>
+  listPublic: (opts?: { limit?: number; cursor?: string } & ListPublicFilters): Promise<RecipesPublicPage> =>
     apiPost<RecipesPublicPage>('/recipes/list-public', opts ?? {}),
   create: (body: CreateRecipeInput): Promise<Recipe> =>
     apiPost<Recipe>('/recipes/create', body),
@@ -116,8 +129,11 @@ export const recipesApi = {
     apiPost<Recipe>('/recipes/edit', { recipeId, ...fields }),
   delete: (recipeId: string): Promise<void> =>
     apiPost<void>('/recipes/delete', { recipeId }),
-  rate: (recipeId: string, rating: number): Promise<RateRecipeResult> =>
-    apiPost<RateRecipeResult>('/recipes/rate', { recipeId, rating }),
+  rate: (
+    recipeId: string,
+    axes: { rating?: number; spiciness?: number },
+  ): Promise<RateRecipeResult> =>
+    apiPost<RateRecipeResult>('/recipes/rate', { recipeId, ...axes }),
   like: (recipeId: string): Promise<{ recipeId: string; likeCount: number; likedByMe: boolean }> =>
     apiPost('/recipes/like', { recipeId }),
 };

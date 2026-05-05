@@ -250,9 +250,9 @@ export function useRecipe(recipeId: string | null) {
     isLoading,
     error,
     refresh: () => mutateOne(),
-    rate: async (rating: number) => {
+    rate: async (axes: { rating?: number; spiciness?: number }) => {
       if (!recipeId) return;
-      await recipesApi.rate(recipeId, rating);
+      await recipesApi.rate(recipeId, axes);
       mutateOne();
       mutate(RECIPES_KEY);
     },

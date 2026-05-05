@@ -9,7 +9,16 @@ import { RecipeComments } from '@/components/RecipeComments';
 import { RatingStars } from '@/components/RatingStars';
 import LikeButton from '@/components/LikeButton';
 import { PrivacyBadge } from '@/components/PrivacyBadge';
-import { Ingredient, ingredientLabel } from '@/types';
+import {
+  Ingredient,
+  Instruction,
+  TAG_LABELS,
+  PROTEIN_LABELS,
+  ingredientLabel,
+  ingredientName,
+  instructionText,
+  normalizeInstruction,
+} from '@/types';
 import { recipesApi } from '@/lib/api';
 import Loader from '@/components/Loader';
 
@@ -30,6 +39,7 @@ function RecipeViewInner() {
   const { recipe, isLoading, error, refresh, edit, remove } = useRecipe(recipeId);
   const [editing, setEditing] = useState(false);
   const [myRating, setMyRating] = useState<number>(0);
+  const [mySpiciness, setMySpiciness] = useState<number>(0);
   const [ratingSubmitting, setRatingSubmitting] = useState(false);
 
   if (authLoading || !isAuthenticated) {
@@ -58,11 +68,15 @@ function RecipeViewInner() {
 
   const isAuthor = user?.sub === recipe.authorUserId;
 
-  const handleRate = async (n: number) => {
-    setMyRating(n);
+  const handleRate = async (axis: 'overall' | 'spiciness', n: number) => {
+    if (axis === 'overall') setMyRating(n);
+    else setMySpiciness(n);
     setRatingSubmitting(true);
     try {
-      await recipesApi.rate(recipe.recipeId, n);
+      await recipesApi.rate(
+        recipe.recipeId,
+        axis === 'overall' ? { rating: n } : { spiciness: n },
+      );
       refresh();
     } finally {
       setRatingSubmitting(false);
@@ -141,23 +155,49 @@ function RecipeViewInner() {
             <PrivacyBadge privacy={recipe.privacy} showFriendsHint />
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-400">
-            <span className="font-semibold text-zinc-200">{recipe.difficulty}</span>
+          <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-400">
+            <DifficultyDots value={typeof recipe.difficulty === 'number' ? recipe.difficulty : 3} />
             {recipe.timeMinutes > 0 && (
               <>
                 <span className="text-zinc-700">·</span>
                 <span>{recipe.timeMinutes} min</span>
               </>
             )}
-            {recipe.proteinSource && (
+            {recipe.servings > 0 && (
               <>
                 <span className="text-zinc-700">·</span>
-                <span className="bg-coral-500/15 text-coral-300 px-2 py-0.5 rounded-full">
-                  {recipe.proteinSource}
+                <span>
+                  {recipe.servings} {recipe.servings === 1 ? 'serving' : 'servings'}
                 </span>
               </>
             )}
+            {(recipe.proteinTypes ?? []).map((p) => (
+              <span
+                key={p}
+                className="bg-coral-500/15 text-coral-300 px-2 py-0.5 rounded-full"
+              >
+                {PROTEIN_LABELS[p] ?? p}
+              </span>
+            ))}
+            {recipe.proteinSource && (recipe.proteinTypes ?? []).length === 0 && (
+              <span className="bg-coral-500/15 text-coral-300 px-2 py-0.5 rounded-full">
+                {recipe.proteinSource}
+              </span>
+            )}
           </div>
+
+          {(recipe.tags ?? []).length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {recipe.tags.map((t) => (
+                <span
+                  key={t}
+                  className="bg-zinc-800/80 text-zinc-300 text-[11px] px-2 py-0.5 rounded-full"
+                >
+                  {TAG_LABELS[t] ?? t}
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="flex items-center gap-3 pt-2">
             <LikeButton
@@ -168,7 +208,7 @@ function RecipeViewInner() {
             <span className="text-xs text-zinc-500">
               {recipe.cookCount} {recipe.cookCount === 1 ? 'cook' : 'cooks'}
             </span>
-            {recipe.ratingCount > 0 && (
+            {recipe.ratingCount > 0 && recipe.avgRating != null && (
               <span className="text-xs text-zinc-500">
                 ★ {recipe.avgRating.toFixed(1)} ({recipe.ratingCount})
               </span>
@@ -179,7 +219,11 @@ function RecipeViewInner() {
             <Stat label="Cooks" value={String(recipe.cookCount)} />
             <Stat
               label="Avg rating"
-              value={recipe.ratingCount > 0 ? recipe.avgRating.toFixed(1) : '–'}
+              value={
+                recipe.ratingCount > 0 && recipe.avgRating != null
+                  ? recipe.avgRating.toFixed(1)
+                  : '–'
+              }
               hint={recipe.ratingCount > 0 ? `${recipe.ratingCount} ratings` : 'no ratings yet'}
             />
             <Stat
@@ -189,42 +233,69 @@ function RecipeViewInner() {
           </div>
 
           {recipe.macros && (
-            <div className="grid grid-cols-4 gap-2 bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 mt-2">
-              {[
-                ['Cal', recipe.macros.calories],
-                ['Protein', `${recipe.macros.protein}g`],
-                ['Carbs', `${recipe.macros.carbs}g`],
-                ['Fat', `${recipe.macros.fat}g`],
-              ].map(([label, val]) => (
-                <div key={label as string} className="text-center">
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-500">
-                    {label}
+            <div className="bg-zinc-950/50 border border-zinc-800 rounded-lg p-3 mt-2">
+              <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-2">
+                Macros · {recipe.macrosScope === 'per-serving' ? 'per serving' : 'per recipe'}
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                {[
+                  ['Cal', recipe.macros.calories],
+                  ['Protein', `${recipe.macros.protein}g`],
+                  ['Carbs', `${recipe.macros.carbs}g`],
+                  ['Fat', `${recipe.macros.fat}g`],
+                ].map(([label, val]) => (
+                  <div key={label as string} className="text-center">
+                    <div className="text-[10px] uppercase tracking-wider text-zinc-500">
+                      {label}
+                    </div>
+                    <div className="font-bold text-base mt-0.5">{val}</div>
                   </div>
-                  <div className="font-bold text-base mt-0.5">{val}</div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
-          <div className="pt-2 border-t border-zinc-800">
+          <div className="pt-2 border-t border-zinc-800 space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
-                  Your rating
+                  Overall
                 </div>
-                <p className="text-[11px] text-zinc-500 mt-0.5">
-                  Tap a star to rate this recipe.
-                </p>
+                {recipe.ratingCount > 0 && recipe.avgRating != null && (
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    avg {recipe.avgRating.toFixed(1)} · {recipe.ratingCount} {recipe.ratingCount === 1 ? 'rating' : 'ratings'}
+                  </p>
+                )}
               </div>
               <RatingStars
                 value={myRating}
-                onChange={(n) => void handleRate(n)}
+                onChange={(n) => void handleRate('overall', n)}
                 size="md"
                 label="Rate this recipe"
               />
             </div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-xs uppercase tracking-wider text-zinc-400 font-semibold">
+                  Spiciness
+                </div>
+                {recipe.spicinessCount > 0 && recipe.spicinessAvg != null ? (
+                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                    avg {recipe.spicinessAvg.toFixed(1)} · {recipe.spicinessCount} {recipe.spicinessCount === 1 ? 'rating' : 'ratings'}
+                  </p>
+                ) : (
+                  <p className="text-[11px] text-zinc-500 mt-0.5">no heat ratings yet</p>
+                )}
+              </div>
+              <RatingStars
+                value={mySpiciness}
+                onChange={(n) => void handleRate('spiciness', n)}
+                size="md"
+                label="Rate spiciness"
+              />
+            </div>
             {ratingSubmitting && (
-              <div className="text-[11px] text-zinc-500 italic mt-1">Saving…</div>
+              <div className="text-[11px] text-zinc-500 italic">Saving…</div>
             )}
           </div>
         </section>
@@ -255,14 +326,35 @@ function RecipeViewInner() {
             <div className="text-sm text-zinc-500 italic">No instructions yet.</div>
           ) : (
             <ol className="space-y-3">
-              {instructions.map((step, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm">
-                  <span className="w-6 h-6 rounded-full bg-coral-500/20 text-coral-400 text-xs grid place-items-center font-bold flex-shrink-0 mt-0.5">
-                    {i + 1}
-                  </span>
-                  <span className="text-zinc-200 leading-relaxed">{step}</span>
-                </li>
-              ))}
+              {instructions.map((rawStep, i) => {
+                const step: Instruction = normalizeInstruction(rawStep);
+                const stepIngs = step.ingredientIndexes
+                  .map((idx) => ingredients[idx])
+                  .filter((x): x is Ingredient | string => Boolean(x));
+                return (
+                  <li key={i} className="flex items-start gap-3 text-sm">
+                    <span className="w-6 h-6 rounded-full bg-coral-500/20 text-coral-400 text-xs grid place-items-center font-bold flex-shrink-0 mt-0.5">
+                      {i + 1}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-zinc-200 leading-relaxed">{step.text || instructionText(rawStep)}</p>
+                      {stepIngs.length > 0 && (
+                        <div className="mt-1.5 flex flex-wrap gap-1">
+                          {stepIngs.map((ing, idx) => (
+                            <span
+                              key={idx}
+                              className="text-[10px] bg-zinc-800/60 border border-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded-full"
+                              title={ingredientLabel(ing)}
+                            >
+                              {ingredientName(ing)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
             </ol>
           )}
         </section>
@@ -291,6 +383,24 @@ function RecipeViewInner() {
         )}
       </main>
     </div>
+  );
+}
+
+function DifficultyDots({ value }: { value: number }) {
+  const v = Math.max(1, Math.min(5, Math.round(value)));
+  return (
+    <span
+      className="inline-flex items-center gap-0.5"
+      aria-label={`Difficulty ${v} of 5`}
+      title={`Difficulty ${v}/5`}
+    >
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span
+          key={n}
+          className={`h-1.5 w-1.5 rounded-full ${n <= v ? 'bg-coral-400' : 'bg-zinc-700'}`}
+        />
+      ))}
+    </span>
   );
 }
 
