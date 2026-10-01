@@ -14,20 +14,25 @@ export default function Header() {
     <>
       <header className="border-b border-zinc-800 bg-zinc-950/95 backdrop-blur sticky top-0 z-30">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
-          <Link
-            href="/"
-            aria-label="Xom Appétit home"
-            className="inline-flex items-center shrink-0 focus:outline-none focus:ring-2 focus:ring-coral-400/50 rounded"
-          >
-            <Brand height={44} className="hidden sm:block" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src="/icon.png"
-              alt="Xom Appétit"
-              className="sm:hidden h-9 w-9 rounded-md"
-              draggable={false}
-            />
-          </Link>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              href="/"
+              aria-label="Xom Appétit home"
+              className="inline-flex items-center shrink-0 focus:outline-none focus:ring-2 focus:ring-coral-400/50 rounded"
+            >
+              <Brand height={44} className="hidden sm:block" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/icon.png"
+                alt="Xom Appétit"
+                className="sm:hidden h-9 w-9 rounded-md"
+                draggable={false}
+              />
+            </Link>
+            <span className="px-2 py-0.5 rounded-md border border-coral-400/40 bg-coral-500/10 text-[11px] font-bold uppercase tracking-wider text-coral-300 select-none">
+              Beta
+            </span>
+          </div>
 
           {/* Desktop cluster */}
           <div className="hidden sm:flex items-center gap-2">
