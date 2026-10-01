@@ -1,6 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import Header from './Header';
+import { BetaBanner } from './BetaBanner';
 
 /**
  * Persistent app chrome. Mounts once via the root layout, so navigating
@@ -15,6 +16,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const showHeader = !pathname.startsWith('/auth');
   return (
     <>
+      <BetaBanner />
       {showHeader && <Header />}
       {children}
     </>

@@ -3,6 +3,7 @@ import Script from 'next/script';
 import './globals.css';
 import { AuthProvider } from '@/lib/auth-context';
 import AppShell from '@/components/AppShell';
+import { BETA_BANNER_HEAD_SCRIPT } from '@/lib/beta-banner';
 
 export const metadata: Metadata = {
   title: 'Xom Appétit',
@@ -26,7 +27,11 @@ const GA4_ID = process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the head script may add data-beta-dismissed before React hydrates.
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: BETA_BANNER_HEAD_SCRIPT }} />
+      </head>
       <body className="bg-zinc-950 text-zinc-100 min-h-screen antialiased">
         {GA4_ID && (
           <>
